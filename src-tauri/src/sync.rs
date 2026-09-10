@@ -415,7 +415,7 @@ pub fn configure_agent_elevated(share_root: &str) -> Result<bool, String> {
     let args = format!("--configure-agent={encoded}");
     let wide = |s: &OsStr| s.encode_wide().chain(Some(0)).collect::<Vec<u16>>();
     let verb = wide(OsStr::new("runas")); let exe_w = wide(exe.as_os_str()); let args_w = wide(OsStr::new(&args));
-    let result = unsafe { ShellExecuteW(0, verb.as_ptr(), exe_w.as_ptr(), args_w.as_ptr(), std::ptr::null(), SW_HIDE) } as isize;
+    let result = unsafe { ShellExecuteW(std::ptr::null_mut(), verb.as_ptr(), exe_w.as_ptr(), args_w.as_ptr(), std::ptr::null(), SW_HIDE) } as isize;
     if result <= 32 { return Err(format!("Windows could not elevate managed sync configuration (ShellExecute code {result}).")); }
     Ok(true)
 }
