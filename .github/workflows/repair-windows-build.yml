@@ -1,0 +1,109 @@
+name: repair-windows-build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/repair-windows-build.yml'
+      - 'src-tauri/src/sync.rs'
+      - 'src-tauri/icons/icon.ico'
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Repair Windows build inputs
+        shell: pwsh
+        run: |
+          $syncPath = 'src-tauri/src/sync.rs'
+          $sync = Get-Content $syncPath -Raw
+          $old = 'ShellExecuteW(0, verb.as_ptr(), exe_w.as_ptr(), args_w.as_ptr(), std::ptr::null(), SW_HIDE)'
+          $new = 'ShellExecuteW(std::ptr::null_mut(), verb.as_ptr(), exe_w.as_ptr(), args_w.as_ptr(), std::ptr::null(), SW_HIDE)'
+          if ($sync.Contains($old)) {
+            $sync = $sync.Replace($old, $new)
+            [IO.File]::WriteAllText((Resolve-Path $syncPath), $sync, [Text.UTF8Encoding]::new($false))
+          }
+
+          # Rebuild icon.ico as a standards-compliant 64x64, 32-bit Windows icon.
+          # This removes the malformed ICO that caused tauri::generate_context!() to panic.
+          $iconPath = Join-Path $PWD 'src-tauri/icons/icon.ico'
+          $stream = [IO.File]::Open($iconPath, [IO.FileMode]::Create, [IO.FileAccess]::Write)
+          $writer = [IO.BinaryWriter]::new($stream)
+          try {
+            $w = 64
+            $h = 64
+            $xorBytes = $w * $h * 4
+            $maskRowBytes = 8
+            $maskBytes = $maskRowBytes * $h
+            $imageBytes = 40 + $xorBytes + $maskBytes
+
+            # ICONDIR
+            $writer.Write([UInt16]0)
+            $writer.Write([UInt16]1)
+            $writer.Write([UInt16]1)
+
+            # ICONDIRENTRY
+            $writer.Write([Byte]$w)
+            $writer.Write([Byte]$h)
+            $writer.Write([Byte]0)
+            $writer.Write([Byte]0)
+            $writer.Write([UInt16]1)
+            $writer.Write([UInt16]32)
+            $writer.Write([UInt32]$imageBytes)
+            $writer.Write([UInt32]22)
+
+            # BITMAPINFOHEADER (height is doubled for XOR + AND masks)
+            $writer.Write([UInt32]40)
+            $writer.Write([Int32]$w)
+            $writer.Write([Int32]($h * 2))
+            $writer.Write([UInt16]1)
+            $writer.Write([UInt16]32)
+            $writer.Write([UInt32]0)
+            $writer.Write([UInt32]$xorBytes)
+            $writer.Write([Int32]0)
+            $writer.Write([Int32]0)
+            $writer.Write([UInt32]0)
+            $writer.Write([UInt32]0)
+
+            # BGRA pixels, bottom-up. Warm Torgy palette with a simple T mark.
+            for ($row = 0; $row -lt $h; $row++) {
+              $y = ($h - 1) - $row
+              for ($x = 0; $x -lt $w; $x++) {
+                $isT = (($y -ge 12 -and $y -le 21 -and $x -ge 12 -and $x -le 51) -or
+                        ($y -ge 21 -and $y -le 52 -and $x -ge 27 -and $x -le 36))
+                if ($isT) {
+                  $r = 244; $g = 241; $b = 234
+                } else {
+                  $r = 77; $g = 72; $b = 65
+                }
+                $writer.Write([Byte]$b)
+                $writer.Write([Byte]$g)
+                $writer.Write([Byte]$r)
+                $writer.Write([Byte]255)
+              }
+            }
+
+            # Opaque AND mask.
+            for ($i = 0; $i -lt $maskBytes; $i++) { $writer.Write([Byte]0) }
+          }
+          finally {
+            $writer.Dispose()
+            $stream.Dispose()
+          }
+
+          if (-not (git diff --quiet -- src-tauri/src/sync.rs src-tauri/icons/icon.ico)) {
+            git config user.name 'torgy-build-bot'
+            git config user.email 'actions@users.noreply.github.com'
+            git add src-tauri/src/sync.rs src-tauri/icons/icon.ico
+            git commit -m 'Fix Windows Rust build blockers'
+            git push origin HEAD:main
+          } else {
+            Write-Host 'Windows build inputs are already repaired.'
+          }
