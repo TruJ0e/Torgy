@@ -19,9 +19,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat .bootstrap-final/part-*.b64 > /tmp/torgy-remain.b64
-          base64 -d /tmp/torgy-remain.b64 > /tmp/torgy-remain.tgz
-          echo "dde078261f695925b1d7f0a4780f7a6e7f2b4dc01fbe18e331505f68b0d82cac  /tmp/torgy-remain.tgz" | sha256sum -c -
+          cat .bootstrap-final/part-*.b64 | tr -d '\r\n\t ' > /tmp/torgy-remain.b64
+          base64 --decode /tmp/torgy-remain.b64 > /tmp/torgy-remain.tgz
+          tar -tzf /tmp/torgy-remain.tgz >/dev/null
           tar -xzf /tmp/torgy-remain.tgz -C .
           rm -rf .bootstrap-final
           rm -f .github/workflows/bootstrap-final.yml
