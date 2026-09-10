@@ -1,0 +1,59 @@
+name: windows-installer
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'src-tauri/**'
+      - 'package.json'
+      - 'vite.config.ts'
+      - 'tsconfig*.json'
+      - '.github/workflows/windows-installer.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    env:
+      # Repository/organization VARIABLES, not secrets. Do not put tokens here.
+      TORGY_COPILOT_URL: ${{ vars.TORGY_COPILOT_URL }}
+      TORGY_OUTLOOK_TENANT_ID: ${{ vars.TORGY_OUTLOOK_TENANT_ID }}
+      TORGY_OUTLOOK_CLIENT_ID: ${{ vars.TORGY_OUTLOOK_CLIENT_ID }}
+      TORGY_SYNC_SHARE_PATH: ${{ vars.TORGY_SYNC_SHARE_PATH }}
+      TORGY_CANVAS_BASE_URL: ${{ vars.TORGY_CANVAS_BASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Release preflight
+        run: node scripts/release-preflight.mjs
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+      - name: Install JavaScript dependencies
+        run: npm install --no-audit --no-fund
+      - name: Apply non-secret university deployment defaults
+        run: npm run configure:deployment
+      - name: Repository secret/data safety check
+        run: npm run security:repo
+      - name: Test core logic
+        run: npm test
+      - name: Check Rust backend
+        run: cargo check --manifest-path src-tauri/Cargo.toml
+      - name: Test Rust backend
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+      - name: Build one-click NSIS installer
+        run: npm run desktop:build
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: torgy-windows-installer
+          path: src-tauri/target/release/bundle/nsis/*-setup.exe
+          if-no-files-found: error
+          retention-days: 14

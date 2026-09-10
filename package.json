@@ -1,0 +1,39 @@
+{
+  "name": "torgy-local",
+  "private": true,
+  "version": "0.4.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "tauri": "tauri",
+    "desktop:dev": "tauri dev",
+    "desktop:build": "tauri build --bundles nsis",
+    "copilot:poc": "tsx scripts/copilot-poc.ts",
+    "core:check": "tsc -p tsconfig.core.json",
+    "security:repo": "node scripts/repo-safety-check.mjs",
+    "configure:deployment": "node scripts/configure-deployment.mjs",
+    "release:preflight": "node scripts/release-preflight.mjs"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "2.11.1",
+    "lucide-react": "1.43.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.11.4",
+    "@types/node": "22.20.2",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.7",
+    "@vitejs/plugin-react": "6.1.1",
+    "playwright": "1.63.0",
+    "tsx": "4.23.13",
+    "typescript": "7.0.2",
+    "vite": "8.2.2",
+    "vitest": "5.0.0"
+  }
+}

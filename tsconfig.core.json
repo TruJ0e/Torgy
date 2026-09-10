@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "strict": true,
+    "skipLibCheck": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true
+  },
+  "include": [
+    "src/tauri-shim.d.ts",
+    "src/types.ts",
+    "src/data/mock.ts",
+    "src/lib/dedupe.ts",
+    "src/services/sync.ts",
+    "src/services/infoDump.ts",
+    "src/services/academicImport.ts",
+    "src/services/outlook.ts",
+    "src/services/canvas.ts",
+    "src/services/persistence.ts",
+    "src/services/copilot.ts",
+    "src/services/speech.ts",
+    "src/services/readiness.ts"
+  ]
+}
