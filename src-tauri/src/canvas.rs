@@ -138,34 +138,91 @@ fn infer_year(month: u32, day: u32, explicit: Option<i32>) -> Option<chrono::Nai
     Some(date)
 }
 
-fn detect_date(text: &str) -> Option<String> {
+#[derive(Debug)]
+struct DateCandidate {
+    start: usize,
+    end: usize,
+    date: String,
+}
+
+fn date_candidates(text: &str) -> Vec<DateCandidate> {
+    let mut candidates = Vec::new();
+
     let named = Regex::new(r"(?i)\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+(\d{1,2})(?:\s*,\s*|\s+)?(20\d{2})?\b").unwrap();
-    if let Some(c) = named.captures(text) {
-        let month = month_number(c.get(1)?.as_str())?;
-        let day = c.get(2)?.as_str().parse().ok()?;
-        let year = c.get(3).and_then(|m| m.as_str().parse().ok());
-        return infer_year(month, day, year).map(|d| d.format("%Y-%m-%d").to_string());
+    for c in named.captures_iter(text) {
+        let Some(full) = c.get(0) else { continue; };
+        let Some(month_match) = c.get(1) else { continue; };
+        let Some(day_match) = c.get(2) else { continue; };
+        let Some(month) = month_number(month_match.as_str()) else { continue; };
+        let Ok(day) = day_match.as_str().parse::<u32>() else { continue; };
+        let year = c.get(3).and_then(|m| m.as_str().parse::<i32>().ok());
+        let Some(date) = infer_year(month, day, year) else { continue; };
+        candidates.push(DateCandidate {
+            start: full.start(),
+            end: full.end(),
+            date: date.format("%Y-%m-%d").to_string(),
+        });
     }
+
     let numeric = Regex::new(r"\b(\d{1,2})[/-](\d{1,2})(?:[/-](20\d{2}|\d{2}))?\b").unwrap();
-    if let Some(c) = numeric.captures(text) {
-        let month: u32 = c.get(1)?.as_str().parse().ok()?; let day: u32 = c.get(2)?.as_str().parse().ok()?;
+    for c in numeric.captures_iter(text) {
+        let Some(full) = c.get(0) else { continue; };
+        let Some(month_match) = c.get(1) else { continue; };
+        let Some(day_match) = c.get(2) else { continue; };
+        let Ok(month) = month_match.as_str().parse::<u32>() else { continue; };
+        let Ok(day) = day_match.as_str().parse::<u32>() else { continue; };
         let year = c.get(3).and_then(|m| m.as_str().parse::<i32>().ok()).map(|y| if y < 100 { 2000 + y } else { y });
-        return infer_year(month, day, year).map(|d| d.format("%Y-%m-%d").to_string());
+        let Some(date) = infer_year(month, day, year) else { continue; };
+        candidates.push(DateCandidate {
+            start: full.start(),
+            end: full.end(),
+            date: date.format("%Y-%m-%d").to_string(),
+        });
     }
-    None
+
+    candidates.sort_by_key(|candidate| candidate.start);
+    candidates
+}
+
+fn detect_date(text: &str) -> Option<String> {
+    date_candidates(text).into_iter().next().map(|candidate| candidate.date)
 }
 
 fn detect_date_near_assignment(syllabus: &str, assignment_name: &str) -> Option<String> {
+    const NEIGHBORHOOD_BYTES: usize = 220;
+
     if assignment_name.trim().len() < 4 || syllabus.trim().is_empty() { return None; }
     let plain = strip_html(syllabus);
     let lower = plain.to_lowercase();
     let needle = assignment_name.trim().to_lowercase();
-    let index = lower.find(&needle)?;
-    let mut start = index.saturating_sub(220);
-    let mut end = (index + needle.len() + 220).min(plain.len());
-    while start < plain.len() && !plain.is_char_boundary(start) { start += 1; }
-    while end > start && !plain.is_char_boundary(end) { end -= 1; }
-    detect_date(plain.get(start..end).unwrap_or_default())
+
+    let mut best: Option<(usize, String)> = None;
+    for (assignment_start, _) in lower.match_indices(&needle) {
+        let assignment_end = assignment_start + needle.len();
+        let mut start = assignment_start.saturating_sub(NEIGHBORHOOD_BYTES);
+        let mut end = (assignment_end + NEIGHBORHOOD_BYTES).min(plain.len());
+        while start < plain.len() && !plain.is_char_boundary(start) { start += 1; }
+        while end > start && !plain.is_char_boundary(end) { end -= 1; }
+        let Some(window) = plain.get(start..end) else { continue; };
+        let local_assignment_start = assignment_start.saturating_sub(start);
+        let local_assignment_end = assignment_end.saturating_sub(start);
+
+        for candidate in date_candidates(window) {
+            let distance = if candidate.end <= local_assignment_start {
+                local_assignment_start - candidate.end
+            } else if candidate.start >= local_assignment_end {
+                candidate.start - local_assignment_end
+            } else {
+                0
+            };
+
+            if best.as_ref().map(|(best_distance, _)| distance < *best_distance).unwrap_or(true) {
+                best = Some((distance, candidate.date));
+            }
+        }
+    }
+
+    best.map(|(_, date)| date)
 }
 
 fn module_assignment_hints(cache: &CanvasCache, course_id: &str) -> HashMap<String, String> {
@@ -231,7 +288,6 @@ pub fn fetch_assignments(app: &AppHandle, students: &[StudentRequest]) -> Result
     Ok(result)
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -251,5 +307,11 @@ mod tests {
         let syllabus = "Week 1: Intro September 1, 2026. Much later: Chemistry Test September 18, 2026. Final December 1, 2026.";
         assert_eq!(detect_date_near_assignment(syllabus, "Chemistry Test").as_deref(), Some("2026-09-18"));
         assert_eq!(detect_date_near_assignment(syllabus, "Unlisted Assignment"), None);
+    }
+
+    #[test]
+    fn syllabus_detection_accepts_date_before_assignment() {
+        let syllabus = "Week 3: September 18, 2026 — Chemistry Test. Week 4: September 25, 2026 — Lab.";
+        assert_eq!(detect_date_near_assignment(syllabus, "Chemistry Test").as_deref(), Some("2026-09-18"));
     }
 }
