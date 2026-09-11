@@ -25,6 +25,8 @@ jobs:
       - name: Install recovered Codex web app
         run: npm run web:install
       - name: Verify recovered Codex web app
+        env:
+          TZ: America/Chicago
         run: |
           npm run web:typecheck
           npm run web:test
