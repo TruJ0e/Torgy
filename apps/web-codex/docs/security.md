@@ -1,0 +1,3 @@
+# Security
+
+Server-side role and advisor/student association checks are required for every production read or mutation; hiding navigation is not authorization. Provider authentication must use Canvas OAuth/PAT or Microsoft delegated OAuth screens—never password capture. Secrets and refresh tokens are excluded from backups and logs and should be stored in an OS credential vault for desktop or encrypted server secret storage. Copilot input must omit credentials, internal IDs, and unnecessary names; every result is schema-validated and requires explicit approval. Deploy privately with TLS, CSRF-safe same-origin mutations, allowlisted redirects, audit logging, backups, and least-privilege scopes.

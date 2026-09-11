@@ -1,0 +1,7 @@
+import { z } from 'zod';
+export const TaskInput=z.object({title:z.string().trim().min(1).max(200),ownerUserId:z.string(),dueAt:z.iso.datetime().nullable().optional(),estimatedMinutes:z.number().int().min(5).max(1440).nullable().optional()});
+export const Proposal=z.object({tasks:z.array(z.object({person:z.string().optional(),title:z.string().min(1),dueAt:z.string().nullable().optional()})),events:z.array(z.object({person:z.string().optional(),title:z.string().min(1),startAt:z.string().optional()}))});
+export function isOverdue(t:{dueAt:string|null;status:string},now=new Date()){return !!t.dueAt&&t.status!=='COMPLETED'&&new Date(t.dueAt)<now}
+export function hasConflict(start:string,end:string,events:{startAt:string;endAt:string}[]){const a=Date.parse(start),b=Date.parse(end);return events.some(e=>a<Date.parse(e.endAt)&&b>Date.parse(e.startAt))}
+export function nextOccurrence(date:string,frequency:string,interval=1){const d=new Date(date);if(frequency==='DAILY')d.setUTCDate(d.getUTCDate()+interval);else if(frequency==='WEEKDAYS'){do d.setUTCDate(d.getUTCDate()+1);while([0,6].includes(d.getUTCDay()))}else if(frequency==='WEEKLY')d.setUTCDate(d.getUTCDate()+7*interval);else d.setUTCMonth(d.getUTCMonth()+interval);return d.toISOString()}
+export function recurringMovePlan(recurrence:string|null|undefined,exceptions:string[]|undefined,occurrenceDay:string|undefined){if(recurrence!=='WEEKLY'||!occurrenceDay)return{detach:false,exceptions:exceptions??[]};return{detach:true,exceptions:Array.from(new Set([...(exceptions??[]),occurrenceDay]))}}

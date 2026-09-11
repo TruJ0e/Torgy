@@ -162,3 +162,24 @@ No code can invent or authorize these environment-specific values:
 These are configuration/approval inputs, not missing product logic.
 
 See `SECURITY.md` and `docs/` for the trust boundaries and deployment details.
+
+## Recovered Codex web application
+
+The original Codex-built Torgy web application from August 29, 2026 is preserved in `apps/web-codex/` alongside the newer local-first Windows application. The desktop implementation remains the primary root application; the recovered web implementation is kept runnable so its interface, scheduling, capture, Cloudflare/Sites integration, and earlier product behavior can be compared or selectively migrated without overwriting the newer architecture.
+
+Run the recovered web application independently:
+
+```powershell
+npm run web:install
+npm run web:typecheck
+npm run web:test
+npm run web:dev
+```
+
+Build it with:
+
+```powershell
+npm run web:build
+```
+
+See `docs/WEB_CODEX_ORIGIN.md` for provenance and the recovered build timeline.

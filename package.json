@@ -16,7 +16,12 @@
     "core:check": "tsc -p tsconfig.core.json",
     "security:repo": "node scripts/repo-safety-check.mjs",
     "configure:deployment": "node scripts/configure-deployment.mjs",
-    "release:preflight": "node scripts/release-preflight.mjs"
+    "release:preflight": "node scripts/release-preflight.mjs",
+    "web:install": "npm --prefix apps/web-codex ci",
+    "web:dev": "npm --prefix apps/web-codex run dev",
+    "web:build": "npm --prefix apps/web-codex run build",
+    "web:test": "npm --prefix apps/web-codex run test",
+    "web:typecheck": "npm --prefix apps/web-codex run typecheck"
   },
   "dependencies": {
     "@tauri-apps/api": "2.11.1",
