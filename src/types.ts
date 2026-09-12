@@ -28,6 +28,8 @@ export interface Task {
   title: string;
   priority: Priority;
   workStatus: WorkStatus;
+  /** Completion instant for the 12-hour Tasks window. Legacy snapshots may omit it. */
+  completedAt?: string | null;
   /** Authoritative date only: official source date or a human-confirmed date. */
   dueDate: string | null;
   /** Unconfirmed date inferred from free text or speech. Never treated as authoritative. */
