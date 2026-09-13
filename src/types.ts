@@ -8,6 +8,8 @@ export type IntegrationState = 'disabled' | 'ready' | 'connecting' | 'syncing' |
 export type AppView = 'tasks' | 'calendar' | 'students' | 'settings';
 export type SyncTransportMode = 'disabled' | 'staff-drive' | 'managed-agent' | 'portable-student';
 export type PairingState = 'unpaired' | 'invite-created' | 'pairing' | 'paired' | 'error';
+export type CalendarDayRange = 'standard' | 'full-day' | 'custom';
+export type CalendarTimeFormat = '12h' | '24h';
 
 export interface Student {
   id: string;
@@ -158,6 +160,10 @@ export interface AppSettings {
   syncAutoSeconds: number;
   academicImportMode: 'manual' | 'docs' | 'canvas';
   canvasBaseUrl: string;
+  calendarDayRange: CalendarDayRange;
+  calendarDayStartHour: number;
+  calendarDayEndHour: number;
+  calendarTimeFormat: CalendarTimeFormat;
 }
 
 export interface AppSnapshot {

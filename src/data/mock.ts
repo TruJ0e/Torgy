@@ -55,6 +55,7 @@ export function createInitialSnapshot(): AppSnapshot {
       outlookEnabled: false, outlookTenantId: '', outlookClientId: '', outlookAutoSyncSeconds: 60,
       syncEnabled: false, syncTransportMode: 'disabled', syncSharePath: '', syncAutoSeconds: 20,
       academicImportMode: 'manual', canvasBaseUrl: '',
+      calendarDayRange: 'standard', calendarDayStartHour: 8, calendarDayEndHour: 19, calendarTimeFormat: '12h',
     },
     updatedAt: now,
   };
