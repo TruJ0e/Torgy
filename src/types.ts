@@ -6,7 +6,7 @@ export type TaskSource = 'advisor' | 'student' | 'canvas' | 'docs' | 'outlook' |
 export type SyncState = 'synced' | 'offline' | 'pending' | 'error';
 export type IntegrationState = 'disabled' | 'ready' | 'connecting' | 'syncing' | 'offline' | 'error';
 export type AppView = 'tasks' | 'calendar' | 'students' | 'settings';
-export type SyncTransportMode = 'disabled' | 'staff-drive' | 'managed-agent';
+export type SyncTransportMode = 'disabled' | 'staff-drive' | 'managed-agent' | 'portable-student';
 export type PairingState = 'unpaired' | 'invite-created' | 'pairing' | 'paired' | 'error';
 
 export interface Student {
@@ -179,6 +179,13 @@ export interface RuntimeInfo {
   platform: string;
   storage: string;
   appDataDir: string;
+  appMode: 'advisor' | 'student' | 'development';
+  supportsCoordinator: boolean;
+  supportsStudent: boolean;
+  supportsManagedAgent: boolean;
+  supportsPortableSync: boolean;
+  portableSyncConfigured: boolean;
+  secureStorage: boolean;
   managedAgentInstalled: boolean;
   managedAgentConfigured: boolean;
 }

@@ -10,6 +10,13 @@ describe('readiness report', () => {
       platform: 'windows',
       storage: 'Windows DPAPI protected local file',
       appDataDir: 'C:\\Users\\demo\\AppData\\Roaming\\Torgy',
+      appMode: 'advisor',
+      supportsCoordinator: true,
+      supportsStudent: true,
+      supportsManagedAgent: true,
+      supportsPortableSync: false,
+      portableSyncConfigured: false,
+      secureStorage: true,
       managedAgentInstalled: false,
       managedAgentConfigured: false,
     });

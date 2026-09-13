@@ -3,6 +3,7 @@ import { copilotStatus } from './copilot';
 import { outlookStatus } from './outlook';
 import { canvasStatus } from './canvas';
 import { managedAgentStatus, testCoordinatorShare } from './sync';
+import { platformCapabilities } from '../platform/capabilities';
 
 function check(key: ReadinessCheck['key'], label: string, status: ReadinessCheck['status'], detail: string): ReadinessCheck {
   return { key, label, status, detail };
@@ -10,14 +11,15 @@ function check(key: ReadinessCheck['key'], label: string, status: ReadinessCheck
 
 export async function runReadinessCheck(snapshot: AppSnapshot, runtime: RuntimeInfo): Promise<ReadinessReport> {
   const checks: ReadinessCheck[] = [];
+  const capabilities = platformCapabilities(runtime);
 
   checks.push(check(
     'local-storage',
     'Local encrypted storage',
-    runtime.platform === 'windows' && !runtime.storage.toLowerCase().includes('development') ? 'ready' : 'warning',
-    runtime.platform === 'windows'
+    capabilities.secureStorage ? 'ready' : 'warning',
+    capabilities.secureStorage
       ? `${runtime.storage}${runtime.appDataDir ? ` · ${runtime.appDataDir}` : ''}`
-      : 'Run the installed Windows desktop build to verify DPAPI-protected storage.',
+      : `${runtime.storage}. Production Torgy requires OS-backed secure storage.`,
   ));
 
   if (!snapshot.settings.copilotEnabled) {
@@ -48,7 +50,9 @@ export async function runReadinessCheck(snapshot: AppSnapshot, runtime: RuntimeI
   if (!snapshot.settings.syncEnabled || snapshot.settings.syncTransportMode === 'disabled') {
     checks.push(check('sync', 'Coordinator/student sync', 'blocked', 'Synchronization is disabled.'));
   } else if (snapshot.settings.role === 'coordinator') {
-    if (!snapshot.settings.syncSharePath.trim()) {
+    if (!capabilities.supportsCoordinator) {
+      checks.push(check('sync', 'Coordinator/student sync', 'blocked', 'Coordinator features are not available in this Torgy student build.'));
+    } else if (!snapshot.settings.syncSharePath.trim()) {
       checks.push(check('sync', 'Coordinator/student sync', 'blocked', 'The university staff-only sync drive path is not configured.'));
     } else {
       try {
@@ -58,20 +62,34 @@ export async function runReadinessCheck(snapshot: AppSnapshot, runtime: RuntimeI
         checks.push(check('sync', 'Coordinator/student sync', 'blocked', error instanceof Error ? error.message : 'The university synchronization drive read/write check failed.'));
       }
     }
-  } else {
-    try {
-      const agent = await managedAgentStatus();
-      const active = agent.installed && agent.configured && agent.running && /^Managed sync active\./i.test(agent.message ?? '');
-      const configured = agent.installed && agent.configured;
-      checks.push(check(
-        'sync',
-        'Coordinator/student sync',
-        active ? 'ready' : configured ? 'warning' : 'blocked',
-        agent.message || (configured ? 'Managed SYSTEM agent is configured but has not completed a successful university-drive cycle yet.' : 'Managed SYSTEM agent still needs university deployment configuration.'),
-      ));
-    } catch (error) {
-      checks.push(check('sync', 'Coordinator/student sync', 'blocked', error instanceof Error ? error.message : 'Managed sync agent status could not be verified.'));
+  } else if (snapshot.settings.syncTransportMode === 'portable-student') {
+    const ready = capabilities.supportsPortableSync && capabilities.portableSyncConfigured;
+    checks.push(check(
+      'sync',
+      'Coordinator/student sync',
+      ready ? 'ready' : 'blocked',
+      ready ? 'Portable encrypted student synchronization is configured.' : 'Portable student synchronization is not configured yet. Local encrypted Torgy data remains available offline.',
+    ));
+  } else if (snapshot.settings.syncTransportMode === 'managed-agent') {
+    if (!capabilities.supportsManagedAgent) {
+      checks.push(check('sync', 'Coordinator/student sync', 'blocked', 'The Windows managed sync agent is not available on this platform.'));
+    } else {
+      try {
+        const agent = await managedAgentStatus();
+        const active = agent.installed && agent.configured && agent.running && /^Managed sync active\./i.test(agent.message ?? '');
+        const configured = agent.installed && agent.configured;
+        checks.push(check(
+          'sync',
+          'Coordinator/student sync',
+          active ? 'ready' : configured ? 'warning' : 'blocked',
+          agent.message || (configured ? 'Managed SYSTEM agent is configured but has not completed a successful university-drive cycle yet.' : 'Managed SYSTEM agent still needs university deployment configuration.'),
+        ));
+      } catch (error) {
+        checks.push(check('sync', 'Coordinator/student sync', 'blocked', error instanceof Error ? error.message : 'Managed sync agent status could not be verified.'));
+      }
     }
+  } else {
+    checks.push(check('sync', 'Coordinator/student sync', 'blocked', 'The selected synchronization transport is not valid for this installation.'));
   }
 
   if (snapshot.settings.role === 'coordinator') {

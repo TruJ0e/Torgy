@@ -82,7 +82,12 @@ export async function saveLocalSnapshot(snapshot: AppSnapshot) {
 
 export async function getRuntimeInfo(): Promise<RuntimeInfo> {
   if (isTauriRuntime()) return invoke<RuntimeInfo>('runtime_info');
-  return { platform: 'browser-development', storage: 'browser localStorage (development only)', appDataDir: '', managedAgentInstalled: false, managedAgentConfigured: false };
+  return {
+    platform: 'browser-development', storage: 'browser localStorage (development only)', appDataDir: '',
+    appMode: 'development', supportsCoordinator: true, supportsStudent: true,
+    supportsManagedAgent: false, supportsPortableSync: false, portableSyncConfigured: false,
+    secureStorage: false, managedAgentInstalled: false, managedAgentConfigured: false,
+  };
 }
 
 export async function getDeploymentDefaults(): Promise<DeploymentDefaults> {

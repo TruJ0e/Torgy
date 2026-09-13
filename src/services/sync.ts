@@ -11,6 +11,7 @@ import type {
   TaskAlias,
 } from '../types';
 import { findPossibleDuplicate, mergeDuplicateTasks, shouldAutoMerge, taskFingerprint } from '../lib/dedupe';
+import { getSyncTransport, type SecurePacketFile } from './syncTransport';
 
 export type MergeResult =
   | { action: 'insert'; task: Task }
@@ -18,11 +19,6 @@ export type MergeResult =
   | { action: 'merge'; task: Task; duplicateOf: string; score: number }
   | { action: 'review'; task: Task; possibleDuplicateId: string; score: number }
   | { action: 'ignore'; task: Task; reason: string };
-
-export interface SecurePacketFile {
-  fileName: string;
-  packet: string;
-}
 
 export interface SyncCycleResult {
   snapshot: AppSnapshot;
@@ -252,48 +248,26 @@ async function open(packet: string, peerPublicKey: string, mailboxId: string) {
 
 async function sendEnvelope(mode: SyncTransportMode, shareRoot: string, envelope: SyncEnvelope, peerPublicKey: string) {
   const packet = await seal(envelope, peerPublicKey);
-  if (mode === 'managed-agent') {
-    await invoke('sync_spool_send', { mailboxId: envelope.mailboxId, envelopeId: envelope.envelopeId, packet });
-    return;
-  }
-  if (mode === 'staff-drive') {
-    await invoke('sync_drive_send', {
-      shareRoot,
-      mailboxId: envelope.mailboxId,
-      direction: 'coordinator-to-student',
-      envelopeId: envelope.envelopeId,
-      packet,
-    });
-    return;
-  }
-  throw new Error('Torgy synchronization transport is disabled.');
+  const direction = mode === 'staff-drive' ? 'coordinator-to-student' : 'student-to-coordinator';
+  await getSyncTransport(mode).send({
+    shareRoot,
+    mailboxId: envelope.mailboxId,
+    direction,
+    envelopeId: envelope.envelopeId,
+    packet,
+  });
 }
 
 async function receivePackets(mode: SyncTransportMode, shareRoot: string, student: Student): Promise<SecurePacketFile[]> {
   if (!student.mailboxId) return [];
-  if (mode === 'managed-agent') return invoke<SecurePacketFile[]>('sync_spool_receive');
-  if (mode === 'staff-drive') {
-    return invoke<SecurePacketFile[]>('sync_drive_receive', {
-      shareRoot,
-      mailboxId: student.mailboxId,
-      direction: 'student-to-coordinator',
-    });
-  }
-  return [];
+  const direction = mode === 'staff-drive' ? 'student-to-coordinator' : 'coordinator-to-student';
+  return getSyncTransport(mode).receive({ shareRoot, mailboxId: student.mailboxId, direction });
 }
 
 async function acknowledgePacket(mode: SyncTransportMode, shareRoot: string, student: Student, fileName: string) {
   if (!student.mailboxId) return;
-  if (mode === 'managed-agent') {
-    await invoke('sync_spool_ack', { fileName });
-  } else if (mode === 'staff-drive') {
-    await invoke('sync_drive_ack', {
-      shareRoot,
-      mailboxId: student.mailboxId,
-      direction: 'student-to-coordinator',
-      fileName,
-    });
-  }
+  const direction = mode === 'staff-drive' ? 'student-to-coordinator' : 'coordinator-to-student';
+  await getSyncTransport(mode).acknowledge({ shareRoot, mailboxId: student.mailboxId, direction, fileName });
 }
 
 export async function createCoordinatorPairingCode(snapshot: AppSnapshot, student: Student) {
@@ -310,15 +284,15 @@ export async function createCoordinatorPairingCode(snapshot: AppSnapshot, studen
   });
 }
 
-export async function requestStudentPairing(code: string, deviceId: string) {
+export async function requestStudentPairing(code: string, deviceId: string, mode: SyncTransportMode = 'managed-agent') {
   if (!code.trim()) throw new Error('Enter the pairing code from the coordinator.');
   await ensureIdentity();
-  return invoke<{ requestId: string; codeHash: string }>('sync_request_pairing', { code, deviceId });
+  return getSyncTransport(mode).requestStudentPairing(code, deviceId);
 }
 
-export async function readStudentPairingResponse(): Promise<PairingResponse | null> {
+export async function readStudentPairingResponse(mode: SyncTransportMode = 'managed-agent'): Promise<PairingResponse | null> {
   if (!isTauriRuntime()) return null;
-  return invoke<PairingResponse | null>('sync_pairing_response');
+  return getSyncTransport(mode).readStudentPairingResponse();
 }
 
 export async function configureManagedAgent(syncSharePath: string) {
@@ -363,8 +337,8 @@ async function applyPairRequests(snapshot: AppSnapshot) {
 }
 
 async function applyStudentPairResponse(snapshot: AppSnapshot) {
-  if (snapshot.settings.role !== 'student' || snapshot.settings.syncTransportMode !== 'managed-agent') return snapshot;
-  const response = await readStudentPairingResponse();
+  if (snapshot.settings.role !== 'student' || !['managed-agent', 'portable-student'].includes(snapshot.settings.syncTransportMode)) return snapshot;
+  const response = await readStudentPairingResponse(snapshot.settings.syncTransportMode);
   if (!response) return snapshot;
   const oldStudent = snapshot.students[0];
   const oldId = oldStudent?.id ?? response.studentId;
@@ -395,7 +369,7 @@ async function applyStudentPairResponse(snapshot: AppSnapshot) {
     syncQueue.push(createTaskEnvelope({ mailboxId: response.mailboxId, studentId: response.studentId, deviceId: snapshot.deviceId, sequence, operation: 'upsert-task', task }));
     sequence += 1;
   }
-  await invoke('sync_clear_pairing_response');
+  await getSyncTransport(snapshot.settings.syncTransportMode).clearStudentPairingResponse();
   return {
     ...snapshot,
     students: [student],
@@ -416,8 +390,15 @@ export async function runSyncCycle(input: AppSnapshot): Promise<SyncCycleResult>
   if (input.settings.role === 'coordinator' && input.settings.syncTransportMode !== 'staff-drive') {
     return { snapshot: { ...input, sync: { ...input.sync, state: 'error', message: 'Coordinator installations must use the staff-drive transport.' } }, sent: 0, received: 0, merged: 0, reviews: 0, pairingRequests: 0, message: 'Coordinator installations must use the staff-drive transport.' };
   }
-  if (input.settings.role === 'student' && input.settings.syncTransportMode !== 'managed-agent') {
-    return { snapshot: { ...input, sync: { ...input.sync, state: 'error', message: 'Student installations must use the managed SYSTEM-agent transport.' } }, sent: 0, received: 0, merged: 0, reviews: 0, pairingRequests: 0, message: 'Student installations must use the managed SYSTEM-agent transport.' };
+  if (input.settings.role === 'student' && !['managed-agent', 'portable-student'].includes(input.settings.syncTransportMode)) {
+    return { snapshot: { ...input, sync: { ...input.sync, state: 'error', message: 'Student installations require an approved student synchronization transport.' } }, sent: 0, received: 0, merged: 0, reviews: 0, pairingRequests: 0, message: 'Student installations require an approved student synchronization transport.' };
+  }
+  const selectedTransport = getSyncTransport(input.settings.syncTransportMode);
+  if (!selectedTransport.configured) {
+    const message = input.settings.syncTransportMode === 'portable-student'
+      ? 'Portable student synchronization is not configured yet. Encrypted local data remains available offline.'
+      : 'Synchronization transport is not configured.';
+    return { snapshot: { ...input, sync: { ...input.sync, state: 'offline', message } }, sent: 0, received: 0, merged: 0, reviews: 0, pairingRequests: 0, message };
   }
 
   const attemptAt = new Date().toISOString();

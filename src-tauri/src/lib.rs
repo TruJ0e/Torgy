@@ -1,6 +1,7 @@
 mod canvas;
 mod copilot;
 mod outlook;
+mod platform;
 mod speech;
 mod storage;
 mod sync;
@@ -15,6 +16,13 @@ struct RuntimeInfo {
     platform: &'static str,
     storage: &'static str,
     app_data_dir: String,
+    app_mode: &'static str,
+    supports_coordinator: bool,
+    supports_student: bool,
+    supports_managed_agent: bool,
+    supports_portable_sync: bool,
+    portable_sync_configured: bool,
+    secure_storage: bool,
     managed_agent_installed: bool,
     managed_agent_configured: bool,
 }
@@ -31,13 +39,26 @@ struct DeploymentDefaults {
 
 #[tauri::command]
 fn runtime_info(app: AppHandle) -> Result<RuntimeInfo, String> {
-    let agent = sync::agent_status();
+    let capabilities = platform::capabilities();
+    let (managed_agent_installed, managed_agent_configured) = if capabilities.supports_managed_agent {
+        let agent = sync::agent_status();
+        (agent.installed, agent.configured)
+    } else {
+        (false, false)
+    };
     Ok(RuntimeInfo {
         platform: std::env::consts::OS,
         storage: storage::storage_description(),
         app_data_dir: storage::data_dir_string(&app)?,
-        managed_agent_installed: agent.installed,
-        managed_agent_configured: agent.configured,
+        app_mode: capabilities.app_mode,
+        supports_coordinator: capabilities.supports_coordinator,
+        supports_student: capabilities.supports_student,
+        supports_managed_agent: capabilities.supports_managed_agent,
+        supports_portable_sync: capabilities.supports_portable_sync,
+        portable_sync_configured: capabilities.portable_sync_configured,
+        secure_storage: capabilities.secure_storage,
+        managed_agent_installed,
+        managed_agent_configured,
     })
 }
 
@@ -69,21 +90,21 @@ async fn speech_dictate_once() -> Result<speech::SpeechResult, String> {
 #[tauri::command] fn sync_identity(app: AppHandle) -> Result<sync::IdentityPublic, String> { sync::identity_public(&app) }
 #[tauri::command] fn sync_seal_envelope(app: AppHandle, envelope: Value, peer_public_key: String, mailbox_id: String) -> Result<String, String> { sync::seal_envelope(&app, &envelope, &peer_public_key, &mailbox_id) }
 #[tauri::command] fn sync_open_packet(app: AppHandle, packet: String, peer_public_key: String, mailbox_id: String) -> Result<Value, String> { sync::open_packet(&app, &packet, &peer_public_key, &mailbox_id) }
-#[tauri::command] fn sync_create_pair_invite(app: AppHandle, share_root: String, student_id: String, mailbox_id: String, expires_minutes: i64) -> Result<sync::PairCodeResult, String> { sync::create_pair_invite(&app, &share_root, &student_id, &mailbox_id, expires_minutes) }
-#[tauri::command] fn sync_request_pairing(app: AppHandle, code: String, device_id: String) -> Result<sync::PairRequestResult, String> { sync::request_pairing(&app, &code, &device_id) }
-#[tauri::command] fn sync_pairing_response() -> Result<Option<sync::PairResponse>, String> { sync::pairing_response() }
-#[tauri::command] fn sync_clear_pairing_response() -> Result<(), String> { sync::clear_pairing_response() }
-#[tauri::command] fn sync_read_pair_requests(share_root: String) -> Result<Vec<sync::PairRequest>, String> { sync::read_pair_requests(&share_root) }
-#[tauri::command] fn sync_ack_pair_request(share_root: String, request_id: String) -> Result<(), String> { sync::ack_pair_request(&share_root, &request_id) }
-#[tauri::command] fn sync_drive_send(share_root: String, mailbox_id: String, direction: String, envelope_id: String, packet: String) -> Result<(), String> { sync::drive_send(&share_root, &mailbox_id, &direction, &envelope_id, &packet) }
-#[tauri::command] fn sync_drive_receive(share_root: String, mailbox_id: String, direction: String) -> Result<Vec<sync::PacketFile>, String> { sync::drive_receive(&share_root, &mailbox_id, &direction) }
-#[tauri::command] fn sync_drive_ack(share_root: String, mailbox_id: String, direction: String, file_name: String) -> Result<(), String> { sync::drive_ack(&share_root, &mailbox_id, &direction, &file_name) }
-#[tauri::command] fn sync_spool_send(mailbox_id: String, envelope_id: String, packet: String) -> Result<(), String> { sync::spool_send(&mailbox_id, &envelope_id, &packet) }
-#[tauri::command] fn sync_spool_receive() -> Result<Vec<sync::PacketFile>, String> { sync::spool_receive() }
-#[tauri::command] fn sync_spool_ack(file_name: String) -> Result<(), String> { sync::spool_ack(&file_name) }
-#[tauri::command] fn sync_configure_agent_elevated(share_root: String) -> Result<Value, String> { Ok(serde_json::json!({ "launched": sync::configure_agent_elevated(&share_root)? })) }
+#[tauri::command] fn sync_create_pair_invite(app: AppHandle, share_root: String, student_id: String, mailbox_id: String, expires_minutes: i64) -> Result<sync::PairCodeResult, String> { platform::require_coordinator()?; sync::create_pair_invite(&app, &share_root, &student_id, &mailbox_id, expires_minutes) }
+#[tauri::command] fn sync_request_pairing(app: AppHandle, code: String, device_id: String) -> Result<sync::PairRequestResult, String> { platform::require_managed_agent()?; sync::request_pairing(&app, &code, &device_id) }
+#[tauri::command] fn sync_pairing_response() -> Result<Option<sync::PairResponse>, String> { platform::require_managed_agent()?; sync::pairing_response() }
+#[tauri::command] fn sync_clear_pairing_response() -> Result<(), String> { platform::require_managed_agent()?; sync::clear_pairing_response() }
+#[tauri::command] fn sync_read_pair_requests(share_root: String) -> Result<Vec<sync::PairRequest>, String> { platform::require_coordinator()?; sync::read_pair_requests(&share_root) }
+#[tauri::command] fn sync_ack_pair_request(share_root: String, request_id: String) -> Result<(), String> { platform::require_coordinator()?; sync::ack_pair_request(&share_root, &request_id) }
+#[tauri::command] fn sync_drive_send(share_root: String, mailbox_id: String, direction: String, envelope_id: String, packet: String) -> Result<(), String> { platform::require_coordinator()?; sync::drive_send(&share_root, &mailbox_id, &direction, &envelope_id, &packet) }
+#[tauri::command] fn sync_drive_receive(share_root: String, mailbox_id: String, direction: String) -> Result<Vec<sync::PacketFile>, String> { platform::require_coordinator()?; sync::drive_receive(&share_root, &mailbox_id, &direction) }
+#[tauri::command] fn sync_drive_ack(share_root: String, mailbox_id: String, direction: String, file_name: String) -> Result<(), String> { platform::require_coordinator()?; sync::drive_ack(&share_root, &mailbox_id, &direction, &file_name) }
+#[tauri::command] fn sync_spool_send(mailbox_id: String, envelope_id: String, packet: String) -> Result<(), String> { platform::require_managed_agent()?; sync::spool_send(&mailbox_id, &envelope_id, &packet) }
+#[tauri::command] fn sync_spool_receive() -> Result<Vec<sync::PacketFile>, String> { platform::require_managed_agent()?; sync::spool_receive() }
+#[tauri::command] fn sync_spool_ack(file_name: String) -> Result<(), String> { platform::require_managed_agent()?; sync::spool_ack(&file_name) }
+#[tauri::command] fn sync_configure_agent_elevated(share_root: String) -> Result<Value, String> { platform::require_managed_agent()?; Ok(serde_json::json!({ "launched": sync::configure_agent_elevated(&share_root)? })) }
 #[tauri::command] fn sync_agent_status() -> sync::AgentStatus { sync::agent_status() }
-#[tauri::command] fn sync_test_share(share_root: String) -> Result<String, String> { sync::test_share(&share_root) }
+#[tauri::command] fn sync_test_share(share_root: String) -> Result<String, String> { platform::require_coordinator()?; sync::test_share(&share_root) }
 
 #[tauri::command]
 async fn outlook_connect(app: AppHandle, tenant_id: String, client_id: String) -> Result<outlook::AccountResult, String> {

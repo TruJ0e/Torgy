@@ -44,6 +44,9 @@ windows-sys = { version = "0.61", features = [
   "Win32_UI_WindowsAndMessaging"
 ] }
 
+[target.'cfg(target_vendor = "apple")'.dependencies]
+security-framework = "3"
+
 [profile.release]
 panic = "abort"
 codegen-units = 1
