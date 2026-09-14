@@ -19,7 +19,6 @@ jobs:
   build-windows:
     runs-on: windows-latest
     env:
-      # Repository/organization VARIABLES, not secrets. Do not put tokens here.
       TORGY_COPILOT_URL: ${{ vars.TORGY_COPILOT_URL }}
       TORGY_OUTLOOK_TENANT_ID: ${{ vars.TORGY_OUTLOOK_TENANT_ID }}
       TORGY_OUTLOOK_CLIENT_ID: ${{ vars.TORGY_OUTLOOK_CLIENT_ID }}
@@ -48,12 +47,14 @@ jobs:
         run: cargo check --manifest-path src-tauri/Cargo.toml
       - name: Test Rust backend
         run: cargo test --manifest-path src-tauri/Cargo.toml
-      - name: Build one-click NSIS installer
+      - name: Build NSIS installer
         run: npm run desktop:build
-      - name: Upload installer
+      - name: Upload Windows release payload
         uses: actions/upload-artifact@v4
         with:
-          name: torgy-windows-installer
-          path: src-tauri/target/release/bundle/nsis/*-setup.exe
+          name: torgy-windows-update
+          path: |
+            src-tauri/target/release/torgy.exe
+            src-tauri/target/release/bundle/nsis/*-setup.exe
           if-no-files-found: error
           retention-days: 14

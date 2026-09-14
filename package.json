@@ -1,7 +1,7 @@
 {
   "name": "torgy-local",
   "private": true,
-  "version": "0.4.0",
+  "version": "0.4.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -21,10 +21,12 @@
     "web:dev": "npm --prefix apps/web-codex run dev",
     "web:build": "npm --prefix apps/web-codex run build",
     "web:test": "npm --prefix apps/web-codex run test",
-    "web:typecheck": "npm --prefix apps/web-codex run typecheck"
+    "web:typecheck": "npm --prefix apps/web-codex run typecheck",
+    "release:windows-update": "powershell -ExecutionPolicy Bypass -File scripts/release-windows-update.ps1"
   },
   "dependencies": {
     "@tauri-apps/api": "2.11.1",
+    "@tauri-apps/plugin-updater": "^2.11.0",
     "lucide-react": "1.43.0",
     "react": "19.2.8",
     "react-dom": "19.2.8"
