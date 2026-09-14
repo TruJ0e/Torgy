@@ -86,8 +86,10 @@ $manifestPath = Join-Path $payloadRoot 'latest.json'
 $manifest | ConvertTo-Json -Depth 6 | Set-Content $manifestPath -Encoding utf8
 
 $tag = "v$version"
-$existing = gh release view $tag --repo $ReleaseRepo --json tagName 2>$null
-if ($LASTEXITCODE -eq 0 -and $existing) {
+$releases = gh release list --repo $ReleaseRepo --limit 100 --json tagName | ConvertFrom-Json
+if ($LASTEXITCODE -ne 0) { throw 'Could not list public Torgy releases.' }
+$existing = $releases | Where-Object { $_.tagName -eq $tag } | Select-Object -First 1
+if ($existing) {
   gh release upload $tag $releaseInstaller $sigPath $manifestPath --repo $ReleaseRepo --clobber
   if ($LASTEXITCODE -ne 0) { throw 'Could not replace release assets.' }
   gh release edit $tag --repo $ReleaseRepo --title "Torgy $version" --notes "Signed generic Windows release for Torgy $version."
