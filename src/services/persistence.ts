@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { createInitialSnapshot } from '../data/mock';
+import { normalizeAppearanceSettings } from '../lib/appearance';
 import type { AppSnapshot, DeploymentDefaults, RuntimeInfo } from '../types';
 
 function isTauriRuntime() {
@@ -21,7 +22,7 @@ export function migrateSnapshot(value: unknown): AppSnapshot | null {
       duplicateReviews: Array.isArray(candidate.duplicateReviews) ? candidate.duplicateReviews : [],
       sync: { ...base.sync, ...(candidate.sync ?? {}) },
       outlook: { ...base.outlook, ...(candidate.outlook ?? {}) },
-      settings: { ...base.settings, ...(candidate.settings ?? {}) },
+      settings: { ...base.settings, ...(candidate.settings ?? {}), ...normalizeAppearanceSettings(candidate.settings) },
       students: (candidate.students ?? []).map((student) => ({
         ...student,
         canvasUserId: student.canvasUserId ?? null,
@@ -52,7 +53,7 @@ export function migrateSnapshot(value: unknown): AppSnapshot | null {
       syncQueue: Array.isArray(old.syncQueue) ? old.syncQueue : [],
       nextSyncSequence: Number(old.nextSyncSequence ?? 1),
       outlook: { ...base.outlook, ...(old.outlook ?? {}) },
-      settings: { ...base.settings, ...(old.settings ?? {}), firstRunComplete: true },
+      settings: { ...base.settings, ...(old.settings ?? {}), ...normalizeAppearanceSettings(old.settings), firstRunComplete: true },
       updatedAt: typeof old.updatedAt === 'string' ? old.updatedAt : new Date().toISOString(),
     };
   }

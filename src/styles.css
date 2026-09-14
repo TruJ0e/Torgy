@@ -795,3 +795,84 @@ html,body,#root{height:100%;overflow:hidden}
 
 .cal-rail{width:100%;align-self:stretch;box-sizing:border-box}
 @media(min-width:1280px){.cal-rail{width:auto}}
+
+/* ---- Appearance and accessibility preferences ---- */
+.app-shell{
+  --appearance-font:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --appearance-bg:#f7f4ee;
+  --appearance-surface:#fffdfa;
+  --appearance-soft:#f4efe8;
+  --appearance-hover:#efeae2;
+  --appearance-text:#2f2b27;
+  --appearance-muted:#6f675f;
+  --appearance-border:#d9d2c8;
+  --appearance-accent:#62594f;
+  --appearance-accent-hover:#554d44;
+  --appearance-on-accent:#fff;
+  --appearance-header:rgba(247,244,238,.95);
+  --appearance-nav:rgba(255,253,250,.94);
+  font-family:var(--appearance-font);
+}
+.app-shell[data-appearance-font="arial"]{--appearance-font:Arial,"Helvetica Neue",sans-serif}
+.app-shell[data-appearance-font="verdana"]{--appearance-font:Verdana,Geneva,sans-serif}
+.app-shell[data-appearance-font="georgia"]{--appearance-font:Georgia,"Times New Roman",serif}
+.app-shell[data-appearance-font="dyslexia-friendly"]{--appearance-font:"Atkinson Hyperlegible","OpenDyslexic",Verdana,Arial,sans-serif}
+
+.app-shell[data-appearance-theme="calm-blue"]{--appearance-bg:#f1f6f9;--appearance-surface:#fbfdff;--appearance-soft:#e8f0f5;--appearance-hover:#dfeaf0;--appearance-text:#263640;--appearance-muted:#586c78;--appearance-border:#c8d7df;--appearance-accent:#426f88;--appearance-accent-hover:#355d74;--appearance-on-accent:#fff;--appearance-header:rgba(241,246,249,.96);--appearance-nav:rgba(251,253,255,.96)}
+.app-shell[data-appearance-theme="sage-green"]{--appearance-bg:#f2f6f0;--appearance-surface:#fbfdf9;--appearance-soft:#e8efe4;--appearance-hover:#dfe9da;--appearance-text:#2d3a2f;--appearance-muted:#5e705f;--appearance-border:#ccd8c8;--appearance-accent:#54755b;--appearance-accent-hover:#44634b;--appearance-on-accent:#fff;--appearance-header:rgba(242,246,240,.96);--appearance-nav:rgba(251,253,249,.96)}
+.app-shell[data-appearance-theme="soft-purple"]{--appearance-bg:#f6f2f8;--appearance-surface:#fefcff;--appearance-soft:#eee7f2;--appearance-hover:#e7deed;--appearance-text:#3a3040;--appearance-muted:#716276;--appearance-border:#d9cde0;--appearance-accent:#755d80;--appearance-accent-hover:#634e6d;--appearance-on-accent:#fff;--appearance-header:rgba(246,242,248,.96);--appearance-nav:rgba(254,252,255,.96)}
+.app-shell[data-appearance-theme="high-contrast"]{--appearance-bg:#fff;--appearance-surface:#fff;--appearance-soft:#eef4ff;--appearance-hover:#dceaff;--appearance-text:#000;--appearance-muted:#202a33;--appearance-border:#111;--appearance-accent:#003f8f;--appearance-accent-hover:#002f6c;--appearance-on-accent:#fff;--appearance-header:#fff;--appearance-nav:#fff}
+.app-shell:not([data-appearance-theme="neutral"]){color:var(--appearance-text);background:var(--appearance-bg)}
+.app-shell:not([data-appearance-theme="neutral"]) :is(.app-content,.side-nav){background:var(--appearance-bg)}
+.app-shell:not([data-appearance-theme="neutral"]) .app-header{background:var(--appearance-header);border-color:var(--appearance-border)}
+.app-shell:not([data-appearance-theme="neutral"]) .bottom-nav{background:var(--appearance-nav);border-color:var(--appearance-border)}
+.app-shell:not([data-appearance-theme="neutral"]) :is(.task-list,.student-card,.integration-card,.settings-action,.advanced-settings,.appearance-settings,.cal-rail,.time-calendar,.cal-month,.mobile-day-agenda,.mobile-agenda>section,.dialog,.search-dialog,.getting-started,.attention-panel){background:var(--appearance-surface);border-color:var(--appearance-border)}
+.app-shell:not([data-appearance-theme="neutral"]) :is(input,select,textarea,button.secondary,.icon-button,.filter-btn,.cal-modes,.cal-chip,.repeat-days button,.page-pager button,.mini-pager button){background:var(--appearance-surface);border-color:var(--appearance-border)}
+.app-shell:not([data-appearance-theme="neutral"]) :is(.side-nav button:hover,.student-card:hover,.student-manage-button:hover,.more:hover,.filter-btn:hover:not(.active),button.secondary:hover:not(:disabled),.icon-button:hover,.search-results section>button:hover){background:var(--appearance-hover)}
+.app-shell:not([data-appearance-theme="neutral"]) :is(.side-nav button.active,button.primary,.bottom-nav button.active,.filter-btn.active,.cal-modes button.active,.repeat-days button.active){background:var(--appearance-accent);border-color:var(--appearance-accent);color:var(--appearance-on-accent)}
+.app-shell:not([data-appearance-theme="neutral"]) button.primary:hover:not(:disabled){background:var(--appearance-accent-hover)}
+.app-shell:not([data-appearance-theme="neutral"]) :is(.page-title p,.notice,.task-body small,.task-date,.integration-card small,.appearance-settings p,.appearance-controls small,.student-copy small,.side-nav button,.bottom-nav button,.date-heading,.drag-hint){color:var(--appearance-muted)}
+.app-shell[data-appearance-theme="high-contrast"] :is(button,input,select,textarea,.task-list,.student-card,.integration-card,.settings-action,.advanced-settings,.appearance-settings,.cal-rail,.time-calendar,.cal-month){border-color:var(--appearance-border)}
+.app-shell[data-appearance-theme="high-contrast"] :is(button,input,select,textarea):focus-visible{outline:3px solid #ffbf00;outline-offset:2px}
+
+.app-shell[data-appearance-text-size="small"]{--appearance-body-size:13px;--appearance-small-size:11px;--appearance-micro-size:9px;--appearance-medium-size:15px;--appearance-title-size:18px;--appearance-page-size:27px;--appearance-calendar-title-size:22px}
+.app-shell[data-appearance-text-size="large"]{--appearance-body-size:16px;--appearance-small-size:14px;--appearance-micro-size:11px;--appearance-medium-size:18px;--appearance-title-size:23px;--appearance-page-size:34px;--appearance-calendar-title-size:27px}
+.app-shell[data-appearance-text-size="extra-large"]{--appearance-body-size:18px;--appearance-small-size:16px;--appearance-micro-size:12px;--appearance-medium-size:20px;--appearance-title-size:26px;--appearance-page-size:38px;--appearance-calendar-title-size:30px}
+.app-shell:not([data-appearance-text-size="standard"]){font-size:var(--appearance-body-size)}
+.app-shell:not([data-appearance-text-size="standard"]) :is(.side-nav button,.tasks-controls select,.info-actions button,.task-body strong,.page-title p,.cal-modes button,.dialog label,.suggestion-title-input,.student-copy small,.appearance-controls label){font-size:var(--appearance-body-size)}
+.app-shell:not([data-appearance-text-size="standard"]) :is(.notice,.task-body small,.task-date,.filter-btn,.integration-card small,.date-heading,.drag-hint,.appearance-settings p,.appearance-controls small,.status-pill,.search-results strong,.mobile-day-event span){font-size:var(--appearance-small-size)}
+.app-shell:not([data-appearance-text-size="standard"]) :is(.priority,.task-date-subhead,.section-title,.cal-day-head span:first-child,.cal-chip,.cal-more,.time-labels span,.time-event span,.time-event small,.mono){font-size:var(--appearance-micro-size)}
+.app-shell:not([data-appearance-text-size="standard"]) :is(.app-brand,.student-copy strong,.cal-day-head strong){font-size:var(--appearance-medium-size)}
+.app-shell:not([data-appearance-text-size="standard"]) :is(.dialog h2,.appearance-settings h2){font-size:var(--appearance-title-size)}
+.app-shell:not([data-appearance-text-size="standard"]) .page-title h1{font-size:var(--appearance-page-size)}
+.app-shell:not([data-appearance-text-size="standard"]) .cal-title h1{font-size:var(--appearance-calendar-title-size)}
+
+.appearance-settings{border:1px solid #d9d2c8;background:#fffdfa;border-radius:15px;padding:14px 16px}
+.appearance-settings-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:12px}
+.appearance-settings h2{margin:0;font-size:16px;font-weight:600}
+.appearance-settings p{margin:3px 0 0;color:#777068;font-size:12px}
+.appearance-controls{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px 12px;align-items:start}
+.appearance-controls>label{display:grid;gap:4px;min-width:0;margin:0;font-size:12px;color:#625c55}
+.appearance-controls select{width:100%;height:34px;min-height:34px;padding:5px 8px;border-radius:8px;font-size:12px}
+.appearance-controls small{display:block;color:#777068;font-size:10px;line-height:1.4}
+.appearance-controls .appearance-switch{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid #e4ded5;padding-top:8px}
+.appearance-switch>span{min-width:0}
+.appearance-switch input{width:18px;min-width:18px;min-height:18px;accent-color:var(--appearance-accent)}
+.settings-stack{overflow-y:auto;overscroll-behavior:contain;padding-right:2px}
+
+.app-shell[data-appearance-density="compact"] .app-content{padding-top:18px;padding-bottom:18px}
+.app-shell[data-appearance-density="compact"] .task{min-height:54px;padding:6px 12px}
+.app-shell[data-appearance-density="compact"] :is(.settings-stack,.settings-grid,.student-grid){gap:8px}
+.app-shell[data-appearance-density="compact"] .settings-grid .integration-card{min-height:82px;padding:10px 12px}
+.app-shell[data-appearance-density="compact"] .side-nav button{height:36px;padding-block:8px}
+.app-shell[data-appearance-density="compact"] :is(button.primary,button.secondary,.icon-button){min-height:34px;padding-block:6px}
+
+.app-shell[data-appearance-reading-spacing="true"] :is(.task-body,.suggestion-fields,.student-copy,.page-title p,.integration-card small,.appearance-settings p,.appearance-controls small,.muted-copy,.dialog p,.dialog textarea){line-height:1.7;letter-spacing:.035em}
+.app-shell[data-appearance-reduced-motion="true"] *,
+.app-shell[data-appearance-reduced-motion="true"] *::before,
+.app-shell[data-appearance-reduced-motion="true"] *::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}
+@media(prefers-reduced-motion:reduce){
+  .app-shell *, .app-shell *::before, .app-shell *::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}
+}
+@media(max-width:900px){.appearance-controls{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){.appearance-settings-heading{align-items:stretch;flex-direction:column}.appearance-settings-heading button{align-self:flex-start}.appearance-controls{grid-template-columns:1fr}}

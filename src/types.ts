@@ -164,6 +164,12 @@ export interface AppSettings {
   calendarDayStartHour: number;
   calendarDayEndHour: number;
   calendarTimeFormat: CalendarTimeFormat;
+  appearanceFont: 'system' | 'arial' | 'verdana' | 'georgia' | 'dyslexia-friendly';
+  appearanceTextSize: 'small' | 'standard' | 'large' | 'extra-large';
+  appearanceTheme: 'neutral' | 'calm-blue' | 'sage-green' | 'soft-purple' | 'high-contrast';
+  appearanceDensity: 'compact' | 'comfortable';
+  appearanceReadingSpacing: boolean;
+  appearanceReducedMotion: boolean;
 }
 
 export interface AppSnapshot {

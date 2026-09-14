@@ -26,6 +26,18 @@ describe('backup migration and restore', () => {
     expect(restored?.students[0].canvasUserId).toBeNull();
     expect(restored?.students[0].pairingState).toBe('unpaired');
     expect((restored?.settings as unknown as Record<string, unknown>).canvasToken).toBeUndefined();
+    expect(restored?.settings.appearanceTheme).toBe('neutral');
+    expect(restored?.settings.appearanceTextSize).toBe('standard');
+  });
+
+  it('adds appearance defaults to an older v2 snapshot without changing its data', () => {
+    const source = createInitialSnapshot();
+    const { appearanceTheme: _theme, appearanceFont: _font, ...olderSettings } = source.settings;
+    const restored = migrateSnapshot({ ...source, settings: olderSettings });
+
+    expect(restored?.deviceId).toBe(source.deviceId);
+    expect(restored?.settings.appearanceTheme).toBe('neutral');
+    expect(restored?.settings.appearanceFont).toBe('system');
   });
 
   it('rejects unrelated JSON', () => {

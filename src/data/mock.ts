@@ -1,4 +1,5 @@
 import type { AppSnapshot, Student, Task } from '../types';
+import { DEFAULT_APPEARANCE_SETTINGS } from '../lib/appearance';
 
 const now = new Date().toISOString();
 
@@ -56,6 +57,7 @@ export function createInitialSnapshot(): AppSnapshot {
       syncEnabled: false, syncTransportMode: 'disabled', syncSharePath: '', syncAutoSeconds: 20,
       academicImportMode: 'manual', canvasBaseUrl: '',
       calendarDayRange: 'standard', calendarDayStartHour: 8, calendarDayEndHour: 19, calendarTimeFormat: '12h',
+      ...DEFAULT_APPEARANCE_SETTINGS,
     },
     updatedAt: now,
   };
