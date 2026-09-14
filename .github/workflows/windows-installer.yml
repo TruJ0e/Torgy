@@ -18,12 +18,6 @@ permissions:
 jobs:
   build-windows:
     runs-on: windows-latest
-    env:
-      TORGY_COPILOT_URL: ${{ vars.TORGY_COPILOT_URL }}
-      TORGY_OUTLOOK_TENANT_ID: ${{ vars.TORGY_OUTLOOK_TENANT_ID }}
-      TORGY_OUTLOOK_CLIENT_ID: ${{ vars.TORGY_OUTLOOK_CLIENT_ID }}
-      TORGY_SYNC_SHARE_PATH: ${{ vars.TORGY_SYNC_SHARE_PATH }}
-      TORGY_CANVAS_BASE_URL: ${{ vars.TORGY_CANVAS_BASE_URL }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -37,8 +31,15 @@ jobs:
           workspaces: src-tauri -> target
       - name: Install JavaScript dependencies
         run: npm install --no-audit --no-fund
-      - name: Apply non-secret university deployment defaults
-        run: npm run configure:deployment
+      - name: Verify public release is generic
+        shell: pwsh
+        run: |
+          $defaults = Get-Content 'src-tauri/deployment.defaults.json' -Raw | ConvertFrom-Json
+          $configured = $defaults.PSObject.Properties | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_.Value) }
+          if ($configured) {
+            throw ('Public release build contains organization-specific defaults: ' + (($configured.Name) -join ', '))
+          }
+          Write-Host 'Public release defaults are generic; no organization-specific configuration will be embedded.'
       - name: Repository secret/data safety check
         run: npm run security:repo
       - name: Test core logic
