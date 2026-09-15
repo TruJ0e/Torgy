@@ -134,7 +134,7 @@
 /* Keep the installed build version obvious without adding another verbose
    status sentence. The updater card is the sixth primary Settings tile. */
 .settings-grid > .integration-card:nth-child(6) small::before {
-  content: "Torgy 0.4.2";
+  content: var(--torgy-version, "Torgy");
   display: block;
   margin-bottom: 2px;
   color: var(--appearance-text, #2f2b27);
