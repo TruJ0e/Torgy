@@ -1,0 +1,132 @@
+/* Calendar and internal-scroll parity fixes.
+   Keep the fixed-window app shell; only content regions scroll. */
+
+/* Avoid nested horizontal scrollers around the calendar. The time grid owns
+   any overflow it actually needs, while the title/all-day rows stay fixed. */
+.time-calendar {
+  overflow: hidden;
+}
+
+.time-scroll {
+  overflow-y: auto;
+  overflow-x: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+/* One-day mode has a full-width column, so it should never expose a horizontal
+   scrollbar or retain the tiny week-card treatment. */
+@supports selector(:has(*)) {
+  .time-calendar:has(.time-days > button:only-child) .time-scroll {
+    overflow-x: hidden;
+  }
+
+  .time-calendar:has(.time-days > button:only-child) .time-columns,
+  .time-calendar:has(.time-days > button:only-child) .time-days,
+  .time-calendar:has(.time-days > button:only-child) .all-day-days {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .time-calendar:has(.time-days > button:only-child) .time-day-column {
+    min-width: 0;
+  }
+
+  .time-calendar:has(.time-days > button:only-child) .time-event {
+    left: 8px;
+    right: 8px;
+    min-height: 34px;
+    border: 1px solid var(--appearance-border, #d9d2c8);
+    border-left: 4px solid var(--appearance-accent, #62594f);
+    border-radius: 10px;
+    background: var(--appearance-surface, #fffdfa);
+    color: var(--appearance-text, #2f2b27);
+    padding: 7px 9px;
+    box-shadow: 0 1px 2px rgba(44, 40, 35, .08);
+  }
+
+  .time-calendar:has(.time-days > button:only-child) .time-event:hover {
+    background: var(--appearance-hover, #f0ebe4);
+  }
+
+  .time-calendar:has(.time-days > button:only-child) .time-event strong {
+    margin: 1px 0 2px;
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 650;
+  }
+
+  .time-calendar:has(.time-days > button:only-child) .time-event span,
+  .time-calendar:has(.time-days > button:only-child) .time-event small {
+    font-size: 10px;
+    line-height: 13px;
+    color: var(--appearance-muted, #70685f);
+  }
+
+  .time-calendar:has(.time-days > button:only-child) .all-day-chip {
+    border-color: var(--appearance-border, #d9d2c8);
+    background: var(--appearance-surface, #fffdfa);
+    border-radius: 9px;
+    padding: 6px 8px;
+  }
+}
+
+/* Internal scrolling should feel consistent without turning the page itself
+   into a scroll surface. */
+.task-board,
+.settings-stack,
+.student-grid,
+.suggestion-list,
+.mobile-day-slots,
+.time-scroll,
+.dialog,
+.search-dialog {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(98, 89, 79, .38) transparent;
+}
+
+.task-board::-webkit-scrollbar,
+.settings-stack::-webkit-scrollbar,
+.student-grid::-webkit-scrollbar,
+.suggestion-list::-webkit-scrollbar,
+.mobile-day-slots::-webkit-scrollbar,
+.time-scroll::-webkit-scrollbar,
+.dialog::-webkit-scrollbar,
+.search-dialog::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.task-board::-webkit-scrollbar-track,
+.settings-stack::-webkit-scrollbar-track,
+.student-grid::-webkit-scrollbar-track,
+.suggestion-list::-webkit-scrollbar-track,
+.mobile-day-slots::-webkit-scrollbar-track,
+.time-scroll::-webkit-scrollbar-track,
+.dialog::-webkit-scrollbar-track,
+.search-dialog::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.task-board::-webkit-scrollbar-thumb,
+.settings-stack::-webkit-scrollbar-thumb,
+.student-grid::-webkit-scrollbar-thumb,
+.suggestion-list::-webkit-scrollbar-thumb,
+.mobile-day-slots::-webkit-scrollbar-thumb,
+.time-scroll::-webkit-scrollbar-thumb,
+.dialog::-webkit-scrollbar-thumb,
+.search-dialog::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgba(98, 89, 79, .38);
+  background-clip: padding-box;
+}
+
+.task-board::-webkit-scrollbar-thumb:hover,
+.settings-stack::-webkit-scrollbar-thumb:hover,
+.time-scroll::-webkit-scrollbar-thumb:hover,
+.dialog::-webkit-scrollbar-thumb:hover,
+.search-dialog::-webkit-scrollbar-thumb:hover {
+  background: rgba(98, 89, 79, .58);
+  background-clip: padding-box;
+}
