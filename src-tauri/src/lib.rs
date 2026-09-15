@@ -152,6 +152,7 @@ pub fn handle_cli_mode() -> bool {
 
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| { storage::data_dir_string(app.handle()).map_err(std::io::Error::other)?; Ok(()) })
         .invoke_handler(tauri::generate_handler![
             runtime_info, deployment_defaults, load_snapshot, save_snapshot, export_backup_json,
