@@ -30,7 +30,7 @@ jobs:
         with:
           workspaces: src-tauri -> target
       - name: Install JavaScript dependencies
-        run: npm install --no-audit --no-fund
+        run: npm install --no-audit --no-fund --legacy-peer-deps
       - name: Verify public release is generic
         shell: pwsh
         run: |

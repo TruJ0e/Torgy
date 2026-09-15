@@ -130,3 +130,13 @@
   background: rgba(98, 89, 79, .58);
   background-clip: padding-box;
 }
+
+/* Keep the installed build version obvious without adding another verbose
+   status sentence. The updater card is the sixth primary Settings tile. */
+.settings-grid > .integration-card:nth-child(6) small::before {
+  content: var(--torgy-version, "Torgy");
+  display: block;
+  margin-bottom: 2px;
+  color: var(--appearance-text, #2f2b27);
+  font-weight: 650;
+}
