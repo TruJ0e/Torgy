@@ -1,0 +1,60 @@
+name: Desktop runner doctor
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/desktop-runner-doctor.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  repair:
+    runs-on: torgy-windows
+    timeout-minutes: 10
+    steps:
+      - name: Start and verify shared project runners
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $targets = @('Torgy','mcs-core','locatru-v1','local-website-engine')
+          $base = Join-Path $env:USERPROFILE 'actions-runners\Projects'
+
+          foreach ($repo in $targets) {
+            $full = "TruJ0e/$repo"
+            $response = gh api "repos/$full/actions/runners" | ConvertFrom-Json
+            $runner = @($response.runners | Where-Object { $_.name -eq "TruJoe-$repo" }) | Select-Object -First 1
+            if (-not $runner) { throw "Runner registration missing for $full" }
+            Write-Host "Before: $full $($runner.status) busy=$($runner.busy)"
+            if ($runner.status -eq 'online') { continue }
+
+            $supervisor = Join-Path (Join-Path $base $repo) 'runner-supervisor.ps1'
+            if (-not (Test-Path -LiteralPath $supervisor)) { throw "Supervisor missing: $supervisor" }
+
+            $tracking = $env:RUNNER_TRACKING_ID
+            Remove-Item Env:RUNNER_TRACKING_ID -ErrorAction SilentlyContinue
+            try {
+              Start-Process powershell.exe -WindowStyle Hidden -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',$supervisor)
+            }
+            finally {
+              if ($null -ne $tracking) { $env:RUNNER_TRACKING_ID = $tracking }
+            }
+          }
+
+          Start-Sleep -Seconds 20
+          $failed = @()
+          foreach ($repo in $targets) {
+            $full = "TruJ0e/$repo"
+            $response = gh api "repos/$full/actions/runners" | ConvertFrom-Json
+            $runner = @($response.runners | Where-Object { $_.name -eq "TruJoe-$repo" }) | Select-Object -First 1
+            if (-not $runner) {
+              $failed += "$full missing"
+              continue
+            }
+            $labels = ($runner.labels | ForEach-Object { $_.name }) -join ','
+            Write-Host "After: $full $($runner.status) busy=$($runner.busy) labels=$labels"
+            if ($runner.status -ne 'online') { $failed += "$full offline" }
+          }
+          if ($failed.Count -gt 0) { throw ($failed -join '; ') }
