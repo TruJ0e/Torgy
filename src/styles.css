@@ -718,9 +718,9 @@ html,body,#root{height:100%;overflow:hidden}
 .time-head,.all-day-row{flex:0 0 auto}
 .time-scroll{flex:1;min-height:0;height:auto;overflow:auto;overscroll-behavior:contain}
 .time-labels,.time-day-column{min-height:0}
-.time-day-column{background:repeating-linear-gradient(to bottom,transparent 0,transparent 25px,#ece6de 25px,#ece6de 26px)}
-.time-event{min-height:18px;padding:2px 4px}
-.time-event span,.time-event small{font-size:8px}.time-event strong{font-size:9px}
+.time-day-column{background-image:linear-gradient(to bottom,transparent calc(100% - 1px),#ece6de calc(100% - 1px),#ece6de 100%);background-repeat:repeat}
+.time-event{min-height:24px;padding:3px 5px;user-select:none}
+.time-event span,.time-event small{font-size:9px;line-height:10px}.time-event strong{font-size:10px;line-height:12px;margin:0}.time-event.compact{padding-top:5px;padding-bottom:5px}.time-event.compact strong{line-height:12px}
 .cal-month{display:flex;flex-direction:column}
 .cal-month-head{flex:0 0 auto}
 .cal-month-grid{flex:1;min-height:0;grid-template-rows:repeat(6,minmax(0,1fr))}

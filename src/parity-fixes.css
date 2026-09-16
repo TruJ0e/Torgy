@@ -131,6 +131,20 @@
   background-clip: padding-box;
 }
 
+/* Version label pinned to bottom of the desktop sidebar via flex push.
+   .side-nav is display:none on mobile so this never appears there. */
+.side-nav::after {
+  content: var(--torgy-version, "");
+  display: block;
+  margin-top: auto;
+  padding: 6px 12px 10px;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--appearance-muted, #9a9189);
+  pointer-events: none;
+  user-select: none;
+}
+
 /* Keep the installed build version obvious without adding another verbose
    status sentence. The updater card is the sixth primary Settings tile. */
 .settings-grid > .integration-card:nth-child(6) small::before {
