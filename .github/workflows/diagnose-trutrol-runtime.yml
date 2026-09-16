@@ -1,0 +1,69 @@
+name: Diagnose canonical TruTrol runtime
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/diagnose-trutrol-runtime.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: [self-hosted, torgy-windows]
+    timeout-minutes: 10
+    steps:
+      - name: Inspect sanitized TruTrol runtime and MCP state
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $roots = @(
+            (Join-Path $env:LOCALAPPDATA 'TruTrol'),
+            (Join-Path $env:LOCALAPPDATA 'OpenCommander')
+          )
+          $root = $roots | Where-Object { Test-Path (Join-Path $_ 'current\dist\cli\commander.js') } | Select-Object -First 1
+          if (-not $root) { throw 'No installed TruTrol runtime found.' }
+          $configDir = Join-Path $root 'data'
+          $cli = Join-Path $root 'current\dist\cli\commander.js'
+          $revision = Join-Path $configDir 'installed-revision.txt'
+          Write-Host "InstallRoot=$root"
+          if (Test-Path $revision) { Write-Host "InstalledRevision=$((Get-Content $revision -Raw).Trim())" }
+
+          $config = Get-Content -LiteralPath (Join-Path $configDir 'config.json') -Raw | ConvertFrom-Json
+          $providers = @($config.agent.mcpServers.PSObject.Properties | ForEach-Object { $_.Name })
+          Write-Host "ConfiguredMCPs=$($providers -join ',')"
+          Write-Host "DeviceAlias=$($config.agent.deviceAlias)"
+
+          $raw = @(& node $cli mcp status --device desktop --config-dir $configDir 2>&1)
+          $code = $LASTEXITCODE
+          Write-Host "McpStatusExit=$code"
+          if ($code -ne 0) {
+            Write-Host 'MCP status command failed; raw output withheld.'
+            exit 0
+          }
+
+          try {
+            $payload = (($raw -join [Environment]::NewLine) | ConvertFrom-Json)
+          } catch {
+            Write-Host 'MCP status returned non-JSON output; raw output withheld.'
+            exit 0
+          }
+
+          Write-Host "ToolCallSuccess=$($payload.success)"
+          if (-not $payload.success -and $null -ne $payload.error) {
+            Write-Host "ToolCallErrorCode=$($payload.error.code)"
+            Write-Host "ToolCallErrorMessage=$($payload.error.message)"
+          }
+
+          $servers = @()
+          if ($payload.result -is [System.Array]) {
+            $servers = @($payload.result)
+          } elseif ($null -ne $payload.result -and $null -ne $payload.result.result) {
+            $servers = @($payload.result.result)
+          }
+          Write-Host "ServerCount=$($servers.Count)"
+          foreach ($server in $servers) {
+            Write-Host ("MCP:{0}:state={1}:tools={2}" -f $server.name,$server.state,$server.toolCount)
+          }
