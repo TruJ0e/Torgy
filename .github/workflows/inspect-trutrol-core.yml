@@ -33,7 +33,9 @@ jobs:
 
           $probe = Join-Path $env:RUNNER_TEMP 'trutrol-core-probe.mjs'
           @'
+          import fs from 'node:fs';
           import path from 'node:path';
+          import crypto from 'node:crypto';
           import { pathToFileURL } from 'node:url';
           const app = process.argv[2];
           const configPath = process.argv[3];
@@ -46,11 +48,35 @@ jobs:
           console.log(`AgentDeviceId=${agent.deviceId}`);
           console.log(`AgentAlias=${agent.deviceAlias || ''}`);
           console.log(`AgentGatewayUrl=${agent.gatewayUrl}`);
+          console.log(`AgentPublicEnrollment=${agent.publicEnrollment === true}`);
           console.log(`GatewayHost=${gateway.host}`);
           console.log(`GatewayPort=${gateway.port}`);
           console.log(`GatewayDeviceIdCount=${sameId.length}`);
-          console.log(`AgentCredentialMatchesGateway=${matches.length === 1}`);
+          console.log(`AgentCredentialMatchesLegacyGateway=${matches.length === 1}`);
           console.log(`GatewayDeviceKeyCount=${(gateway.deviceKeys || []).length}`);
+          const publicPlugin = gateway.publicPlugin;
+          console.log(`PublicPluginEnabled=${publicPlugin?.enabled === true}`);
+          let publicDeviceCount = 0;
+          let publicDeviceSameIdCount = 0;
+          let publicCredentialMatches = false;
+          let publicDeviceClaimed = false;
+          if (publicPlugin?.dataDirectory) {
+            const authPath = path.join(publicPlugin.dataDirectory, 'public-auth.json');
+            if (fs.existsSync(authPath)) {
+              const state = JSON.parse(fs.readFileSync(authPath, 'utf8'));
+              const devices = Array.isArray(state.devices) ? state.devices : [];
+              publicDeviceCount = devices.length;
+              const same = devices.filter((d) => d.deviceId === agent.deviceId);
+              publicDeviceSameIdCount = same.length;
+              const hash = crypto.createHash('sha256').update(agent.deviceKey, 'utf8').digest('base64url');
+              publicCredentialMatches = same.some((d) => d.credentialHash === hash);
+              publicDeviceClaimed = same.some((d) => typeof d.tenantId === 'string' && d.tenantId.length > 0);
+            }
+          }
+          console.log(`PublicAuthDeviceCount=${publicDeviceCount}`);
+          console.log(`PublicAuthSameDeviceIdCount=${publicDeviceSameIdCount}`);
+          console.log(`AgentCredentialMatchesPublicStore=${publicCredentialMatches}`);
+          console.log(`PublicDeviceClaimed=${publicDeviceClaimed}`);
           '@ | Set-Content -LiteralPath $probe -Encoding UTF8
           & node $probe $app $configPath
           if ($LASTEXITCODE -ne 0) { throw 'Protected-config registration probe failed.' }
@@ -89,4 +115,20 @@ jobs:
               Write-Host "GatewayConnectedDeviceCount=$($devices.Count)"
               foreach ($d in $devices) { Write-Host "GatewayDevice:id=$($d.id):alias=$($d.alias):name=$($d.name)" }
             } catch { Write-Host 'GatewayStatusParseFailed=true' }
+          }
+
+          foreach ($url in @('https://commander.trujoedigital.com/health','https://commander.trujoedigital.com/ready')) {
+            try {
+              $response = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 15
+              Write-Host "PublicEndpoint:$url:status=$([int]$response.StatusCode)"
+              try {
+                $body = $response.Content | ConvertFrom-Json
+                if ($null -ne $body.connectedDevices) { Write-Host "PublicEndpointConnectedDevices=$($body.connectedDevices)" }
+                if ($null -ne $body.ready) { Write-Host "PublicEndpointReady=$($body.ready)" }
+                if ($null -ne $body.reason) { Write-Host "PublicEndpointReason=$($body.reason)" }
+              } catch {}
+            } catch {
+              $code = if ($_.Exception.Response) { [int]$_.Exception.Response.StatusCode } else { 0 }
+              Write-Host "PublicEndpoint:$url:status=$code:error=true"
+            }
           }
