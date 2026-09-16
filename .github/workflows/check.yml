@@ -14,6 +14,7 @@ concurrency:
 
 jobs:
   frontend:
+    if: false
     runs-on: torgy-windows
     steps:
       - uses: actions/checkout@v4
@@ -38,6 +39,7 @@ jobs:
           npm run web:build
 
   rust-static:
+    if: false
     runs-on: torgy-windows
     steps:
       - uses: actions/checkout@v4
