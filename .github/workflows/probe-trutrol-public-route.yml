@@ -1,0 +1,90 @@
+name: Probe TruTrol public route
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/probe-trutrol-public-route.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: [self-hosted, torgy-windows]
+    timeout-minutes: 10
+    steps:
+      - name: Probe public HTTP and WebSocket route without exposing credentials
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $roots = @(
+            (Join-Path $env:LOCALAPPDATA 'TruTrol'),
+            (Join-Path $env:LOCALAPPDATA 'OpenCommander')
+          )
+          $root = $roots | Where-Object { Test-Path (Join-Path $_ 'current\dist\cli\commander.js') } | Select-Object -First 1
+          if (-not $root) { throw 'No installed TruTrol runtime found.' }
+          $app = Join-Path $root 'current'
+          $configPath = Join-Path $root 'data\config.json'
+          $probe = Join-Path $app '.trutrol-route-probe.cjs'
+          @'
+          const fs = require('fs');
+          const path = require('path');
+          const { pathToFileURL } = require('url');
+          const WebSocket = require('ws');
+          (async () => {
+            const app = process.argv[2];
+            const configPath = process.argv[3];
+            const mod = await import(pathToFileURL(path.join(app, 'dist/core/protected-config.js')).href);
+            const config = mod.loadProtectedConfig(configPath).config;
+            const agent = config.agent;
+            for (const suffix of ['/health', '/ready']) {
+              const url = `${agent.gatewayUrl.replace(/\/$/, '')}${suffix}`;
+              try {
+                const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+                let body = null;
+                try { body = await res.json(); } catch {}
+                console.log(`PublicHttp:${suffix}:status=${res.status}:connected=${body?.connectedDevices ?? 'unknown'}:ready=${body?.ready ?? 'unknown'}:reason=${body?.reason ?? ''}`);
+              } catch (err) {
+                console.log(`PublicHttp:${suffix}:error=${err?.name || 'error'}:${err?.message || ''}`);
+              }
+            }
+            const wsUrl = `${agent.gatewayUrl.replace(/^http/, 'ws').replace(/\/$/, '')}/device/connect`;
+            await new Promise((resolve) => {
+              const ws = new WebSocket(wsUrl, {
+                headers: { 'x-device-key': agent.deviceKey, 'x-device-id': agent.deviceId },
+                handshakeTimeout: 10000
+              });
+              const timer = setTimeout(() => {
+                console.log('PublicWebSocket:timeout');
+                try { ws.terminate(); } catch {}
+                resolve();
+              }, 12000);
+              ws.once('open', () => {
+                console.log('PublicWebSocket:open=true');
+                clearTimeout(timer);
+                ws.close();
+                resolve();
+              });
+              ws.once('unexpected-response', (_req, res) => {
+                console.log(`PublicWebSocket:unexpectedStatus=${res.statusCode}`);
+                clearTimeout(timer);
+                try { ws.terminate(); } catch {}
+                resolve();
+              });
+              ws.once('error', (err) => {
+                console.log(`PublicWebSocket:error=${err.message}`);
+                clearTimeout(timer);
+                resolve();
+              });
+            });
+          })().catch((err) => { console.error(`ProbeError=${err?.message || err}`); process.exitCode = 1; });
+          '@ | Set-Content -LiteralPath $probe -Encoding UTF8
+          try {
+            Push-Location $app
+            try { & node $probe $app $configPath } finally { Pop-Location }
+            if ($LASTEXITCODE -ne 0) { throw 'Public route probe failed.' }
+          } finally {
+            Remove-Item -LiteralPath $probe -Force -ErrorAction SilentlyContinue
+          }
