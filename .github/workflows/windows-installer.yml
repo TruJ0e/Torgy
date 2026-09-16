@@ -15,9 +15,13 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: torgy-windows-installer-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-windows:
-    runs-on: windows-latest
+    runs-on: torgy-windows
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -32,7 +36,7 @@ jobs:
       - name: Install JavaScript dependencies
         run: npm install --no-audit --no-fund --legacy-peer-deps
       - name: Verify public release is generic
-        shell: pwsh
+        shell: powershell
         run: |
           $defaults = Get-Content 'src-tauri/deployment.defaults.json' -Raw | ConvertFrom-Json
           $configured = $defaults.PSObject.Properties | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_.Value) }
