@@ -4,6 +4,12 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+    inputs:
+      run_hosted_rust:
+        description: 'Run native Rust certification on paid GitHub-hosted Windows'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -67,10 +73,10 @@ jobs:
         run: cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
 
   # Desktop Windows App Control blocks Cargo's unsigned generated build-script
-  # executables. Keep the complete native Rust compile/test available explicitly,
-  # but do not consume hosted Windows minutes on every push or pull request.
+  # executables. Native compile/test remains available, but only after an explicit
+  # workflow-dispatch opt-in so a routine manual run cannot consume hosted minutes.
   rust-native-certification:
-    if: github.event_name == 'workflow_dispatch'
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_hosted_rust == true }}
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
