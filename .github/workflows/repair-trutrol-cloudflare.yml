@@ -1,0 +1,95 @@
+name: Repair TruTrol Cloudflare tunnel
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/repair-trutrol-cloudflare.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  repair:
+    runs-on: [self-hosted, torgy-windows]
+    timeout-minutes: 10
+    steps:
+      - name: Inspect and recover Cloudflared service safely
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $service = Get-CimInstance Win32_Service -ErrorAction SilentlyContinue | Where-Object {
+            $_.Name -match '(?i)cloudflared' -or $_.DisplayName -match '(?i)cloudflared'
+          } | Select-Object -First 1
+
+          if ($service) {
+            Write-Host "CloudflaredServiceName=$($service.Name)"
+            Write-Host "CloudflaredServiceState=$($service.State)"
+            Write-Host "CloudflaredServiceStartMode=$($service.StartMode)"
+          } else {
+            Write-Host 'CloudflaredServiceName=none'
+          }
+
+          $processes = @(Get-CimInstance Win32_Process -Filter "Name='cloudflared.exe'" -ErrorAction SilentlyContinue)
+          Write-Host "CloudflaredProcessCount=$($processes.Count)"
+          foreach ($p in $processes) { Write-Host "CloudflaredProcessPid=$($p.ProcessId)" }
+
+          $configCandidates = @(
+            (Join-Path $env:SystemRoot 'System32\config\systemprofile\.cloudflared\config.yml'),
+            (Join-Path $env:SystemRoot 'System32\config\systemprofile\.cloudflared\config.yaml'),
+            (Join-Path $env:USERPROFILE '.cloudflared\config.yml'),
+            (Join-Path $env:USERPROFILE '.cloudflared\config.yaml')
+          ) | Select-Object -Unique
+
+          $configs = @($configCandidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf })
+          Write-Host "CloudflaredConfigCount=$($configs.Count)"
+          foreach ($config in $configs) {
+            Write-Host "CloudflaredConfigPath=$config"
+            $safeLines = @(Get-Content -LiteralPath $config | Where-Object {
+              $_ -match '^\s*(hostname|service|tunnel|credentials-file)\s*:'
+            })
+            foreach ($line in $safeLines) {
+              if ($line -match '^\s*tunnel\s*:') {
+                Write-Host 'Config:tunnel=present'
+              } elseif ($line -match '^\s*credentials-file\s*:') {
+                Write-Host 'Config:credentials-file=present'
+              } else {
+                Write-Host "Config:$($line.Trim())"
+              }
+            }
+          }
+
+          function Test-PublicTruTrol {
+            try {
+              $response = Invoke-WebRequest -Uri 'https://commander.trujoedigital.com/health' -UseBasicParsing -TimeoutSec 10
+              Write-Host "CommanderPublicHealth=$([int]$response.StatusCode)"
+              return ([int]$response.StatusCode -eq 200)
+            } catch {
+              $status = if ($_.Exception.Response) { [int]$_.Exception.Response.StatusCode } else { 0 }
+              Write-Host "CommanderPublicHealth=$status"
+              return $false
+            }
+          }
+
+          $healthyBefore = Test-PublicTruTrol
+          if (-not $healthyBefore) {
+            if ($service) {
+              Write-Host 'Public TruTrol route is unhealthy; restarting the existing Cloudflared service without changing its config.'
+              & sc.exe stop $service.Name | Out-Null
+              Start-Sleep -Seconds 2
+              & sc.exe start $service.Name | Out-Null
+              if ($LASTEXITCODE -ne 0) { throw "Could not start Cloudflared service '$($service.Name)'." }
+            } else {
+              throw 'Cloudflared service is not installed; refusing to invent a tunnel or token.'
+            }
+          }
+
+          $healthy = $false
+          for ($attempt = 1; $attempt -le 18; $attempt++) {
+            Start-Sleep -Seconds 3
+            if (Test-PublicTruTrol) { $healthy = $true; break }
+          }
+          if (-not $healthy) { throw 'Cloudflared service restarted, but commander.trujoedigital.com still does not return HTTP 200.' }
+          Write-Host 'TruTrol public Cloudflare route recovered.'
