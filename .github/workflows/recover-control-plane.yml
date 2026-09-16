@@ -5,21 +5,39 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/recover-control-plane.yml'
+      - 'scripts/recover-control-plane.ps1'
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: recover-trutrol-control-plane
+  cancel-in-progress: false
+
 jobs:
-  probe:
+  recover:
     runs-on: [self-hosted, torgy-windows]
-    timeout-minutes: 5
+    timeout-minutes: 15
     steps:
-      - name: Probe recovery runner
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+
+      - name: Parse recovery script
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          Write-Host "Recovery host: $env:COMPUTERNAME"
-          $login = (gh api user --jq .login).Trim()
-          if ($login -ne 'TruJ0e') { throw "Unexpected GitHub CLI identity: $login" }
-          Write-Host "Torgy recovery runner is alive as $login."
+          $script = Join-Path $env:GITHUB_WORKSPACE 'scripts\recover-control-plane.ps1'
+          $errors = $null
+          $tokens = $null
+          [System.Management.Automation.Language.Parser]::ParseFile($script,[ref]$tokens,[ref]$errors) | Out-Null
+          if ($errors.Count) { $errors | ForEach-Object { Write-Error $_ }; exit 1 }
+
+      - name: Restore Commander TAOS and TruTrol ownership
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $script = Join-Path $env:GITHUB_WORKSPACE 'scripts\recover-control-plane.ps1'
+          & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy RemoteSigned -File $script
+          if ($LASTEXITCODE -ne 0) { throw "Control-plane recovery exited $LASTEXITCODE" }
