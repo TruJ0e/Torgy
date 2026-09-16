@@ -37,6 +37,7 @@ jobs:
           import path from 'node:path';
           import crypto from 'node:crypto';
           import { pathToFileURL } from 'node:url';
+          import WebSocket from 'ws';
           const app = process.argv[2];
           const configPath = process.argv[3];
           const mod = await import(pathToFileURL(path.join(app, 'dist/core/protected-config.js')).href);
@@ -77,8 +78,51 @@ jobs:
           console.log(`PublicAuthSameDeviceIdCount=${publicDeviceSameIdCount}`);
           console.log(`AgentCredentialMatchesPublicStore=${publicCredentialMatches}`);
           console.log(`PublicDeviceClaimed=${publicDeviceClaimed}`);
+
+          for (const suffix of ['/health', '/ready']) {
+            const url = `${agent.gatewayUrl.replace(/\/$/, '')}${suffix}`;
+            try {
+              const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+              let body = null;
+              try { body = await res.json(); } catch {}
+              console.log(`PublicHttp:${suffix}:status=${res.status}:connected=${body?.connectedDevices ?? 'unknown'}:ready=${body?.ready ?? 'unknown'}:reason=${body?.reason ?? ''}`);
+            } catch (err) {
+              console.log(`PublicHttp:${suffix}:error=${err?.name || 'error'}:${err?.message || ''}`);
+            }
+          }
+
+          const wsUrl = `${agent.gatewayUrl.replace(/^http/, 'ws').replace(/\/$/, '')}/device/connect`;
+          await new Promise((resolve) => {
+            const ws = new WebSocket(wsUrl, {
+              headers: { 'x-device-key': agent.deviceKey, 'x-device-id': agent.deviceId },
+              handshakeTimeout: 10000
+            });
+            const timer = setTimeout(() => {
+              console.log('PublicWebSocket:timeout');
+              try { ws.terminate(); } catch {}
+              resolve();
+            }, 12000);
+            ws.once('open', () => {
+              console.log('PublicWebSocket:open=true');
+              clearTimeout(timer);
+              ws.close();
+              resolve();
+            });
+            ws.once('unexpected-response', (_req, res) => {
+              console.log(`PublicWebSocket:unexpectedStatus=${res.statusCode}`);
+              clearTimeout(timer);
+              try { ws.terminate(); } catch {}
+              resolve();
+            });
+            ws.once('error', (err) => {
+              console.log(`PublicWebSocket:error=${err.message}`);
+              clearTimeout(timer);
+              resolve();
+            });
+          });
           '@ | Set-Content -LiteralPath $probe -Encoding UTF8
-          & node $probe $app $configPath
+          Push-Location $app
+          try { & node $probe $app $configPath } finally { Pop-Location }
           if ($LASTEXITCODE -ne 0) { throw 'Protected-config registration probe failed.' }
           Remove-Item -LiteralPath $probe -Force -ErrorAction SilentlyContinue
 
@@ -90,6 +134,11 @@ jobs:
           foreach ($p in $nodes) {
             $mode = if ($p.CommandLine -match '\sall(?:\s|$)') { 'all' } elseif ($p.CommandLine -match '\sagent(?:\s|$)') { 'agent' } elseif ($p.CommandLine -match '\sgateway(?:\s|$)') { 'gateway' } else { 'unknown' }
             Write-Host "TruTrolProcess:pid=$($p.ProcessId):parent=$($p.ParentProcessId):mode=$mode"
+            try {
+              $tcp = @(Get-NetTCPConnection -OwningProcess ([int]$p.ProcessId) -ErrorAction SilentlyContinue)
+              $established443 = @($tcp | Where-Object { $_.State -eq 'Established' -and $_.RemotePort -eq 443 })
+              Write-Host "TruTrolProcess:pid=$($p.ProcessId):established443=$($established443.Count)"
+            } catch {}
           }
 
           $lockDir = Join-Path $env:TEMP 'trutrol-agent-locks'
@@ -115,20 +164,4 @@ jobs:
               Write-Host "GatewayConnectedDeviceCount=$($devices.Count)"
               foreach ($d in $devices) { Write-Host "GatewayDevice:id=$($d.id):alias=$($d.alias):name=$($d.name)" }
             } catch { Write-Host 'GatewayStatusParseFailed=true' }
-          }
-
-          foreach ($url in @('https://commander.trujoedigital.com/health','https://commander.trujoedigital.com/ready')) {
-            try {
-              $response = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 15
-              Write-Host "PublicEndpoint:$url:status=$([int]$response.StatusCode)"
-              try {
-                $body = $response.Content | ConvertFrom-Json
-                if ($null -ne $body.connectedDevices) { Write-Host "PublicEndpointConnectedDevices=$($body.connectedDevices)" }
-                if ($null -ne $body.ready) { Write-Host "PublicEndpointReady=$($body.ready)" }
-                if ($null -ne $body.reason) { Write-Host "PublicEndpointReason=$($body.reason)" }
-              } catch {}
-            } catch {
-              $code = if ($_.Exception.Response) { [int]$_.Exception.Response.StatusCode } else { 0 }
-              Write-Host "PublicEndpoint:$url:status=$code:error=true"
-            }
           }
