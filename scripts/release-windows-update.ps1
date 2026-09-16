@@ -83,7 +83,8 @@ $manifest = [ordered]@{
   }
 }
 $manifestPath = Join-Path $payloadRoot 'latest.json'
-$manifest | ConvertTo-Json -Depth 6 | Set-Content $manifestPath -Encoding utf8
+$manifestJson = $manifest | ConvertTo-Json -Depth 6
+[IO.File]::WriteAllText($manifestPath, $manifestJson, (New-Object Text.UTF8Encoding($false)))
 
 $tag = "v$version"
 $releases = gh release list --repo $ReleaseRepo --limit 100 --json tagName | ConvertFrom-Json
