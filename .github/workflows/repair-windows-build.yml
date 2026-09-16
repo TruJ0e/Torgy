@@ -13,14 +13,14 @@ permissions:
 
 jobs:
   repair:
-    runs-on: windows-latest
+    runs-on: torgy-windows
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Repair Windows build inputs
-        shell: pwsh
+        shell: powershell
         run: |
           $syncPath = 'src-tauri/src/sync.rs'
           $sync = Get-Content $syncPath -Raw
