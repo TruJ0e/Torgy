@@ -10,145 +10,16 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: recover-trutrol-control-plane
-  cancel-in-progress: false
-
 jobs:
-  recover:
-    runs-on: torgy-windows
-    timeout-minutes: 15
+  probe:
+    runs-on: [self-hosted, torgy-windows]
+    timeout-minutes: 5
     steps:
-      - name: Verify recovery host and GitHub identity
+      - name: Probe recovery runner
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
+          Write-Host "Recovery host: $env:COMPUTERNAME"
           $login = (gh api user --jq .login).Trim()
           if ($login -ne 'TruJ0e') { throw "Unexpected GitHub CLI identity: $login" }
-          Write-Host "Recovery host: $env:COMPUTERNAME; GitHub identity: $login"
-
-      - name: Restore Commander and TAOS runners
-        shell: powershell
-        run: |
-          $ErrorActionPreference = 'Stop'
-
-          function Get-RepoRunner([string]$repo, [string]$name) {
-            $raw = gh api "repos/TruJ0e/$repo/actions/runners" | ConvertFrom-Json
-            return @($raw.runners | Where-Object { $_.name -eq $name }) | Select-Object -First 1
-          }
-
-          function Get-LocalListenerCount([string]$dir) {
-            try {
-              return @(Get-CimInstance Win32_Process -Filter "Name='Runner.Listener.exe'" -ErrorAction Stop | Where-Object {
-                ($_.ExecutablePath -and $_.ExecutablePath.StartsWith($dir, [System.StringComparison]::OrdinalIgnoreCase)) -or
-                ($_.CommandLine -and $_.CommandLine.IndexOf($dir, [System.StringComparison]::OrdinalIgnoreCase) -ge 0)
-              }).Count
-            } catch { return 0 }
-          }
-
-          function Ensure-Runner([string]$repo, [string]$runnerName, [string]$dir, [string]$taskName) {
-            $runCmd = Join-Path $dir 'run.cmd'
-            if (-not (Test-Path -LiteralPath $runCmd -PathType Leaf)) { throw "Missing runner entrypoint: $runCmd" }
-
-            $record = Get-RepoRunner $repo $runnerName
-            if (-not $record) { throw "Runner '$runnerName' is not registered for TruJ0e/$repo." }
-            $listeners = Get-LocalListenerCount $dir
-            Write-Host "$repo before: status=$($record.status) busy=$($record.busy) listeners=$listeners"
-
-            if ($record.status -eq 'online' -and $listeners -eq 1) {
-              Write-Host "$repo runner already healthy."
-              return
-            }
-            if ($listeners -gt 1) { throw "$repo has duplicate local listeners ($listeners)." }
-
-            $service = Get-CimInstance Win32_Service -ErrorAction SilentlyContinue | Where-Object {
-              $_.PathName -and $_.PathName.IndexOf($dir, [System.StringComparison]::OrdinalIgnoreCase) -ge 0
-            } | Select-Object -First 1
-
-            if ($service) {
-              Write-Host "Restarting $repo runner service '$($service.Name)'."
-              if ($service.State -eq 'Running') { & sc.exe stop $service.Name | Out-Null; Start-Sleep -Seconds 2 }
-              & sc.exe start $service.Name | Out-Null
-            } else {
-              $cmd = Join-Path $env:SystemRoot 'System32\cmd.exe'
-              $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
-              $xmlPath = Join-Path $env:TEMP ("runner-" + [guid]::NewGuid().ToString('N') + '.xml')
-              $xml = @"
-<?xml version="1.0" encoding="UTF-16"?>
-<Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
-  <Triggers><LogonTrigger><Enabled>true</Enabled><UserId>$([Security.SecurityElement]::Escape($identity))</UserId></LogonTrigger></Triggers>
-  <Principals><Principal id="Author"><UserId>$([Security.SecurityElement]::Escape($identity))</UserId><LogonType>InteractiveToken</LogonType><RunLevel>LeastPrivilege</RunLevel></Principal></Principals>
-  <Settings><MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy><DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries><StopIfGoingOnBatteries>false</StopIfGoingOnBatteries><StartWhenAvailable>true</StartWhenAvailable><RestartOnFailure><Interval>PT1M</Interval><Count>10</Count></RestartOnFailure><ExecutionTimeLimit>PT0S</ExecutionTimeLimit><Enabled>true</Enabled></Settings>
-  <Actions Context="Author"><Exec><Command>$([Security.SecurityElement]::Escape($cmd))</Command><Arguments>/d /s /c &quot;&quot;$([Security.SecurityElement]::Escape($runCmd))&quot;&quot;</Arguments><WorkingDirectory>$([Security.SecurityElement]::Escape($dir))</WorkingDirectory></Exec></Actions>
-</Task>
-"@
-              $schtasks = Join-Path $env:SystemRoot 'System32\schtasks.exe'
-              try {
-                Set-Content -LiteralPath $xmlPath -Value $xml -Encoding Unicode
-                & $schtasks /Create /TN $taskName /XML $xmlPath /F | Out-Null
-                if ($LASTEXITCODE -ne 0) { throw "Could not register '$taskName'." }
-                & $schtasks /Run /TN $taskName | Out-Null
-                if ($LASTEXITCODE -ne 0) { throw "Could not start '$taskName'." }
-              } finally { Remove-Item -LiteralPath $xmlPath -Force -ErrorAction SilentlyContinue }
-            }
-
-            $deadline = (Get-Date).AddSeconds(90)
-            do {
-              Start-Sleep -Seconds 3
-              $record = Get-RepoRunner $repo $runnerName
-              $listeners = Get-LocalListenerCount $dir
-            } while (($record.status -ne 'online' -or $listeners -ne 1) -and (Get-Date) -lt $deadline)
-
-            if ($record.status -ne 'online' -or $listeners -ne 1) {
-              throw "$repo runner recovery failed: status=$($record.status) listeners=$listeners"
-            }
-            Write-Host "$repo recovered: online with one listener."
-          }
-
-          Ensure-Runner 'Commander' 'TruJoe-Commander' (Join-Path $env:USERPROFILE 'actions-runners\Commander') 'GitHubRunner-Commander'
-          Ensure-Runner 'TruJoe-AOS' 'TruJoe-TAOS' (Join-Path $env:USERPROFILE 'actions-runners\TAOS') 'GitHubRunner-TAOS'
-
-      - name: Restore single TruTrol owner
-        shell: powershell
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $schtasks = Join-Path $env:SystemRoot 'System32\schtasks.exe'
-
-          function Task-Exists([string]$name) {
-            $out = Join-Path $env:TEMP ([guid]::NewGuid().ToString('N') + '.out')
-            $err = Join-Path $env:TEMP ([guid]::NewGuid().ToString('N') + '.err')
-            try {
-              $p = Start-Process -FilePath $schtasks -ArgumentList @('/Query','/TN',$name) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $out -RedirectStandardError $err
-              return $p.ExitCode -eq 0
-            } finally { Remove-Item -LiteralPath $out,$err -Force -ErrorAction SilentlyContinue }
-          }
-
-          $owner = if (Task-Exists 'TruTrol') { 'TruTrol' } elseif (Task-Exists 'OpenCommander') { 'OpenCommander' } else { $null }
-          if (-not $owner) { throw 'Neither TruTrol nor OpenCommander owner task is registered.' }
-
-          Write-Host "Selected single TruTrol owner task: $owner"
-          & $schtasks /Run /TN $owner | Out-Null
-          if ($LASTEXITCODE -ne 0) { throw "Could not start owner task '$owner'." }
-
-          $root = @(
-            (Join-Path $env:LOCALAPPDATA 'TruTrol'),
-            (Join-Path $env:LOCALAPPDATA 'OpenCommander')
-          ) | Where-Object { Test-Path (Join-Path $_ 'current\dist\cli\commander.js') } | Select-Object -First 1
-          if (-not $root) { throw 'No installed TruTrol/OpenCommander runtime was found.' }
-
-          $cli = Join-Path $root 'current\dist\cli\commander.js'
-          $configDir = Join-Path $root 'data'
-          $ready = $false
-          for ($attempt = 1; $attempt -le 20; $attempt++) {
-            Start-Sleep -Seconds 3
-            & node $cli status --config-dir $configDir *> $null
-            if ($LASTEXITCODE -eq 0) { $ready = $true; break }
-          }
-          if (-not $ready) { throw 'TruTrol did not become ready after owner restart.' }
-
-          $raw = @(& node $cli mcp status --device desktop --config-dir $configDir 2>&1)
-          if ($LASTEXITCODE -ne 0) { throw 'Could not read live TruTrol MCP state.' }
-          $payload = (($raw -join [Environment]::NewLine) | ConvertFrom-Json)
-          $github = @($payload.result | Where-Object { $_.name -eq 'github' -and $_.state -eq 'running' })
-          if ($github.Count -ne 1) { throw "Expected one running canonical GitHub MCP; found $($github.Count)." }
-          Write-Host "TruTrol ready. Canonical GitHub MCP tools=$($github[0].toolCount)."
+          Write-Host "Torgy recovery runner is alive as $login."
