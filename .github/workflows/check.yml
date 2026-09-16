@@ -45,13 +45,20 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          rustup toolchain install stable --profile minimal --component rustfmt --no-self-update
+          $cargoBin = Join-Path $env:USERPROFILE '.cargo\bin'
+          $rustup = Join-Path $cargoBin 'rustup.exe'
+          $cargo = Join-Path $cargoBin 'cargo.exe'
+          if (-not (Test-Path -LiteralPath $rustup)) { throw "Missing Rust toolchain manager: $rustup" }
+          if (-not (Test-Path -LiteralPath $cargo)) { throw "Missing Cargo: $cargo" }
+          $env:Path = "$cargoBin;$env:Path"
+
+          & $rustup toolchain install stable --profile minimal --component rustfmt --no-self-update
           if ($LASTEXITCODE -ne 0) { throw 'Rust toolchain setup failed.' }
-          rustup default stable
+          & $rustup default stable
           if ($LASTEXITCODE -ne 0) { throw 'Could not select stable Rust.' }
-          cargo metadata --manifest-path src-tauri/Cargo.toml --no-deps --format-version 1 | Out-Null
+          & $cargo metadata --manifest-path src-tauri/Cargo.toml --no-deps --format-version 1 | Out-Null
           if ($LASTEXITCODE -ne 0) { throw 'Cargo metadata validation failed.' }
-          cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
+          & $cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
           if ($LASTEXITCODE -ne 0) { throw 'Rust formatting/syntax validation failed.' }
 
   # Desktop Windows App Control blocks Cargo's unsigned generated build-script
