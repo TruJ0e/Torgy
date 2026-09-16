@@ -1,0 +1,92 @@
+name: Inspect TruTrol core registration
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/inspect-trutrol-core.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: [self-hosted, torgy-windows]
+    timeout-minutes: 10
+    steps:
+      - name: Inspect sanitized core registration state
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $roots = @(
+            (Join-Path $env:LOCALAPPDATA 'TruTrol'),
+            (Join-Path $env:LOCALAPPDATA 'OpenCommander')
+          )
+          $root = $roots | Where-Object { Test-Path (Join-Path $_ 'current\dist\cli\commander.js') } | Select-Object -First 1
+          if (-not $root) { throw 'No installed TruTrol runtime found.' }
+          $app = Join-Path $root 'current'
+          $configDir = Join-Path $root 'data'
+          $configPath = Join-Path $configDir 'config.json'
+          $cli = Join-Path $app 'dist\cli\commander.js'
+          Write-Host "InstallRoot=$root"
+
+          $probe = Join-Path $env:RUNNER_TEMP 'trutrol-core-probe.mjs'
+          @'
+          import path from 'node:path';
+          import { pathToFileURL } from 'node:url';
+          const app = process.argv[2];
+          const configPath = process.argv[3];
+          const mod = await import(pathToFileURL(path.join(app, 'dist/core/protected-config.js')).href);
+          const loaded = mod.loadProtectedConfig(configPath).config;
+          const agent = loaded.agent;
+          const gateway = loaded.gateway;
+          const matches = (gateway.deviceKeys || []).filter((d) => d.deviceId === agent.deviceId && d.key === agent.deviceKey);
+          const sameId = (gateway.deviceKeys || []).filter((d) => d.deviceId === agent.deviceId);
+          console.log(`AgentDeviceId=${agent.deviceId}`);
+          console.log(`AgentAlias=${agent.deviceAlias || ''}`);
+          console.log(`AgentGatewayUrl=${agent.gatewayUrl}`);
+          console.log(`GatewayHost=${gateway.host}`);
+          console.log(`GatewayPort=${gateway.port}`);
+          console.log(`GatewayDeviceIdCount=${sameId.length}`);
+          console.log(`AgentCredentialMatchesGateway=${matches.length === 1}`);
+          console.log(`GatewayDeviceKeyCount=${(gateway.deviceKeys || []).length}`);
+          '@ | Set-Content -LiteralPath $probe -Encoding UTF8
+          & node $probe $app $configPath
+          if ($LASTEXITCODE -ne 0) { throw 'Protected-config registration probe failed.' }
+          Remove-Item -LiteralPath $probe -Force -ErrorAction SilentlyContinue
+
+          $entrypoint = [IO.Path]::GetFullPath($cli)
+          $nodes = @(Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction SilentlyContinue | Where-Object {
+            $_.CommandLine -and $_.CommandLine.IndexOf($entrypoint, [StringComparison]::OrdinalIgnoreCase) -ge 0
+          })
+          Write-Host "TruTrolNodeProcessCount=$($nodes.Count)"
+          foreach ($p in $nodes) {
+            $mode = if ($p.CommandLine -match '\sall(?:\s|$)') { 'all' } elseif ($p.CommandLine -match '\sagent(?:\s|$)') { 'agent' } elseif ($p.CommandLine -match '\sgateway(?:\s|$)') { 'gateway' } else { 'unknown' }
+            Write-Host "TruTrolProcess:pid=$($p.ProcessId):parent=$($p.ParentProcessId):mode=$mode"
+          }
+
+          $lockDir = Join-Path $env:TEMP 'trutrol-agent-locks'
+          $locks = if (Test-Path $lockDir) { @(Get-ChildItem -LiteralPath $lockDir -Filter '*.lock' -File -ErrorAction SilentlyContinue) } else { @() }
+          Write-Host "OwnershipLockCount=$($locks.Count)"
+          foreach ($lock in $locks) {
+            try {
+              $r = Get-Content -LiteralPath $lock.FullName -Raw | ConvertFrom-Json
+              $alive = $false
+              try { Get-Process -Id ([int]$r.pid) -ErrorAction Stop | Out-Null; $alive = $true } catch {}
+              Write-Host "OwnershipLock:pid=$($r.pid):alive=$alive"
+            } catch {
+              Write-Host 'OwnershipLock:unreadable=true'
+            }
+          }
+
+          $statusRaw = @(& node $cli status --config-dir $configDir 2>&1)
+          Write-Host "GatewayStatusExit=$LASTEXITCODE"
+          if ($LASTEXITCODE -eq 0) {
+            try {
+              $status = (($statusRaw -join [Environment]::NewLine) | ConvertFrom-Json)
+              $devices = @($status.devices)
+              Write-Host "GatewayConnectedDeviceCount=$($devices.Count)"
+              foreach ($d in $devices) { Write-Host "GatewayDevice:id=$($d.id):alias=$($d.alias):name=$($d.name)" }
+            } catch { Write-Host 'GatewayStatusParseFailed=true' }
+          }
