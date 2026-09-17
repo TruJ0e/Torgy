@@ -14,16 +14,54 @@ pub struct Capabilities {
 
 pub fn capabilities() -> Capabilities {
     #[cfg(target_os = "windows")]
-    { return Capabilities { app_mode: "advisor", supports_coordinator: true, supports_student: true, supports_managed_agent: true, supports_portable_sync: false, portable_sync_configured: false, secure_storage: true }; }
+    {
+        return Capabilities {
+            app_mode: "advisor",
+            supports_coordinator: true,
+            supports_student: true,
+            supports_managed_agent: true,
+            supports_portable_sync: false,
+            portable_sync_configured: false,
+            secure_storage: true,
+        };
+    }
     #[cfg(target_vendor = "apple")]
-    { return Capabilities { app_mode: "student", supports_coordinator: false, supports_student: true, supports_managed_agent: false, supports_portable_sync: true, portable_sync_configured: false, secure_storage: true }; }
+    {
+        return Capabilities {
+            app_mode: "student",
+            supports_coordinator: false,
+            supports_student: true,
+            supports_managed_agent: false,
+            supports_portable_sync: true,
+            portable_sync_configured: false,
+            secure_storage: true,
+        };
+    }
     #[cfg(all(not(target_os = "windows"), not(target_vendor = "apple")))]
-    { Capabilities { app_mode: "development", supports_coordinator: false, supports_student: true, supports_managed_agent: false, supports_portable_sync: false, portable_sync_configured: false, secure_storage: cfg!(debug_assertions) } }
+    {
+        Capabilities {
+            app_mode: "development",
+            supports_coordinator: false,
+            supports_student: true,
+            supports_managed_agent: false,
+            supports_portable_sync: false,
+            portable_sync_configured: false,
+            secure_storage: cfg!(debug_assertions),
+        }
+    }
 }
 pub fn require_coordinator() -> Result<(), String> {
-    if capabilities().supports_coordinator { Ok(()) } else { Err("Coordinator capabilities are not available in this Torgy student build.".into()) }
+    if capabilities().supports_coordinator {
+        Ok(())
+    } else {
+        Err("Coordinator capabilities are not available in this Torgy student build.".into())
+    }
 }
 
 pub fn require_managed_agent() -> Result<(), String> {
-    if capabilities().supports_managed_agent { Ok(()) } else { Err("The Windows managed sync agent is not available on this platform.".into()) }
+    if capabilities().supports_managed_agent {
+        Ok(())
+    } else {
+        Err("The Windows managed sync agent is not available on this platform.".into())
+    }
 }

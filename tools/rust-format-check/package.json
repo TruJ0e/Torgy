@@ -1,0 +1,9 @@
+﻿{
+  "name": "torgy-rust-format-check",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "@scalar/rust-fmt": "0.2.0"
+  }
+}

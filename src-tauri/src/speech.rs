@@ -49,13 +49,23 @@ $recognizer.Dispose()
         .map_err(|_| "Windows speech recognition returned an unreadable result.".to_string())?;
 
     Ok(SpeechResult {
-        text: value.get("text").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
-        confidence: value.get("confidence").and_then(|v| v.as_f64()).map(|v| v as f32),
+        text: value
+            .get("text")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default()
+            .to_string(),
+        confidence: value
+            .get("confidence")
+            .and_then(|v| v.as_f64())
+            .map(|v| v as f32),
         engine: "Windows System.Speech (local)".to_string(),
     })
 }
 
 #[cfg(not(target_os = "windows"))]
 pub fn dictate_once() -> Result<SpeechResult, String> {
-    Err("Local speech capture is currently implemented for the Windows desktop build only.".to_string())
+    Err(
+        "Local speech capture is currently implemented for the Windows desktop build only."
+            .to_string(),
+    )
 }
