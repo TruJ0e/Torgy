@@ -1,4 +1,4 @@
-name: check
+﻿name: check
 
 on:
   push:
@@ -51,9 +51,9 @@ jobs:
         with:
           node-version: 22
       - name: Install Rust formatter dependencies
-        run: npm install --no-audit --no-fund --legacy-peer-deps --ignore-scripts --package-lock=false
+        run: npm ci --prefix tools/rust-format-check --ignore-scripts --no-audit --no-fund
       - name: Validate Rust formatting and parseability
-        run: npm run rust:format:check
+        run: node tools/rust-format-check/check.mjs
 
   # Desktop Windows App Control blocks Cargo's unsigned generated build-script
   # executables. Native compile/test remains available, but only after an explicit

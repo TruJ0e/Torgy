@@ -22,8 +22,7 @@
     "web:build": "npm --prefix apps/web-codex run build",
     "web:test": "npm --prefix apps/web-codex run test",
     "web:typecheck": "npm --prefix apps/web-codex run typecheck",
-    "release:windows-update": "powershell -ExecutionPolicy Bypass -File scripts/release-windows-update.ps1",
-    "rust:format:check": "node scripts/check-rust-format.mjs"
+    "release:windows-update": "powershell -ExecutionPolicy Bypass -File scripts/release-windows-update.ps1"
   },
   "dependencies": {
     "@tauri-apps/api": "2.11.1",
@@ -33,7 +32,6 @@
     "react-dom": "19.2.8"
   },
   "devDependencies": {
-    "@scalar/rust-fmt": "0.2.0",
     "@tauri-apps/cli": "2.11.4",
     "@types/node": "22.20.2",
     "@types/react": "19.2.18",

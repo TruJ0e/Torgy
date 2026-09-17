@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { format } from '@scalar/rust-fmt'
 
-const root = fileURLToPath(new URL('../src-tauri/', import.meta.url))
+const root = fileURLToPath(new URL('../../src-tauri/', import.meta.url))
 
 async function rustFiles(directory) {
   const entries = await readdir(directory, { withFileTypes: true })
@@ -39,3 +39,4 @@ if (failures.length) {
 } else if (!process.exitCode) {
   console.log(`Rust formatting and parseability OK (${files.length} files).`)
 }
+
