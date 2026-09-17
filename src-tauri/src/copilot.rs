@@ -18,11 +18,14 @@ fn approved_microsoft_host(host: &str) -> bool {
 }
 
 fn copilot_window(app: &AppHandle) -> Result<WebviewWindow, String> {
-    let window = app.get_webview_window("copilot")
-        .ok_or_else(|| "Copilot is not open. Open the approved Microsoft Copilot window first.".to_string())?;
-    let current = window.url().map_err(|e| format!("Could not verify the current Copilot URL: {e}"))?;
-    let approved = current.scheme() == "https"
-        && current.host_str().is_some_and(approved_microsoft_host);
+    let window = app.get_webview_window("copilot").ok_or_else(|| {
+        "Copilot is not open. Open the approved Microsoft Copilot window first.".to_string()
+    })?;
+    let current = window
+        .url()
+        .map_err(|e| format!("Could not verify the current Copilot URL: {e}"))?;
+    let approved =
+        current.scheme() == "https" && current.host_str().is_some_and(approved_microsoft_host);
     if !approved {
         return Err("The Copilot bridge stopped because the remote window navigated outside the approved Microsoft HTTPS boundary. Reopen Copilot from Torgy Settings.".to_string());
     }
@@ -55,19 +58,28 @@ pub fn open_window(app: &AppHandle, raw_url: &str) -> Result<(), String> {
     if parsed.scheme() != "https" {
         return Err("Copilot must use HTTPS.".to_string());
     }
-    let host = parsed.host_str().ok_or_else(|| "Copilot URL has no host.".to_string())?;
+    let host = parsed
+        .host_str()
+        .ok_or_else(|| "Copilot URL has no host.".to_string())?;
     if !approved_microsoft_host(host) {
-        return Err("For this build, the Copilot window is restricted to Microsoft-owned HTTPS hosts.".to_string());
+        return Err(
+            "For this build, the Copilot window is restricted to Microsoft-owned HTTPS hosts."
+                .to_string(),
+        );
     }
 
     if let Some(existing) = app.get_webview_window("copilot") {
-        let current = existing.url().map_err(|e| format!("Could not read Copilot URL: {e}"))?;
+        let current = existing
+            .url()
+            .map_err(|e| format!("Could not read Copilot URL: {e}"))?;
         if current.host_str() != parsed.host_str() {
             existing
                 .navigate(parsed)
                 .map_err(|e| format!("Could not navigate Copilot window: {e}"))?;
         }
-        existing.set_focus().map_err(|e| format!("Could not focus Copilot window: {e}"))?;
+        existing
+            .set_focus()
+            .map_err(|e| format!("Could not focus Copilot window: {e}"))?;
         return Ok(());
     }
 
@@ -139,7 +151,8 @@ pub fn probe(app: &AppHandle) -> Result<Value, String> {
 
 pub fn submit_prompt(app: &AppHandle, prompt: &str) -> Result<Value, String> {
     let window = copilot_window(app)?;
-    let prompt_json = serde_json::to_string(prompt).map_err(|e| format!("Could not encode Copilot prompt: {e}"))?;
+    let prompt_json = serde_json::to_string(prompt)
+        .map_err(|e| format!("Could not encode Copilot prompt: {e}"))?;
     let script = format!(
         r#"
 (() => {{
