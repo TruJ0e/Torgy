@@ -39,4 +39,3 @@ if (failures.length) {
 } else if (!process.exitCode) {
   console.log(`Rust formatting and parseability OK (${files.length} files).`)
 }
-
