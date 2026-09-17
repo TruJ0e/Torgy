@@ -15,7 +15,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: torgy-check-${{ github.workflow }}-${{ github.ref }}
+  group: torgy-check-${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
