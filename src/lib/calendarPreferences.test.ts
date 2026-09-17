@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatCalendarClock, getCalendarWindow } from './calendarPreferences';
+import { formatCalendarClock, getCalendarSlotHeight, getCalendarWindow } from './calendarPreferences';
 
 describe('calendar preferences', () => {
   it('provides a compact standard day without losing 30-minute slots', () => {
@@ -15,6 +15,13 @@ describe('calendar preferences', () => {
   it('clamps custom ranges and keeps at least one hour visible', () => {
     expect(getCalendarWindow({ calendarDayRange: 'custom', calendarDayStartHour: 23, calendarDayEndHour: 7 }))
       .toEqual({ startHour: 23, endHour: 24, slotCount: 2 });
+  });
+
+  it('expands shorter calendar ranges to fill the available grid height but keeps a readable minimum', () => {
+    expect(getCalendarSlotHeight(22, 704)).toBe(32);
+    expect(getCalendarSlotHeight(22, 770)).toBe(35);
+    expect(getCalendarSlotHeight(48, 704)).toBe(32);
+    expect(getCalendarSlotHeight(2, 704)).toBe(352);
   });
 
   it('formats either 12-hour or 24-hour clocks', () => {

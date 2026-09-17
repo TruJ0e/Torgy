@@ -21,6 +21,12 @@ export function getCalendarWindow(settings: Pick<AppSettings, 'calendarDayRange'
   return { startHour, endHour, slotCount: (endHour - startHour) * 2 };
 }
 
+export function getCalendarSlotHeight(slotCount: number, viewportHeight: number, minimumSlotHeight = 32) {
+  const safeSlots = Math.max(1, Math.round(slotCount));
+  const safeViewport = Number.isFinite(viewportHeight) ? Math.max(0, viewportHeight) : 0;
+  return Math.max(minimumSlotHeight, safeViewport / safeSlots);
+}
+
 export function formatCalendarClock(hour: number, minute: number, format: CalendarTimeFormat) {
   if (format === '24h') return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
   const suffix = hour >= 12 ? 'PM' : 'AM';
