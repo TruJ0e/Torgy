@@ -30,9 +30,6 @@ jobs:
       - name: Release preflight
         run: node scripts/release-preflight.mjs
       - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: src-tauri -> target
       - name: Install JavaScript dependencies
         run: npm install --no-audit --no-fund --legacy-peer-deps
       - name: Verify public release is generic

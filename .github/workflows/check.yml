@@ -15,11 +15,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: torgy-check-${{ github.workflow }}-${{ github.ref }}
+  group: torgy-check-${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
   frontend:
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: torgy-windows
     steps:
       - uses: actions/checkout@v4
@@ -44,6 +45,7 @@ jobs:
           npm run web:build
 
   rust-static:
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: torgy-windows
     steps:
       - uses: actions/checkout@v4
