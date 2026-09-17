@@ -1,4 +1,4 @@
-﻿name: check
+name: check
 
 on:
   push:
@@ -23,7 +23,7 @@ jobs:
     runs-on: torgy-windows
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - name: Release preflight
@@ -47,7 +47,7 @@ jobs:
     runs-on: torgy-windows
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - name: Install Rust formatter dependencies
