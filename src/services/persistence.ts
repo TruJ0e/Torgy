@@ -87,7 +87,7 @@ export async function getRuntimeInfo(): Promise<RuntimeInfo> {
     platform: 'browser-development', storage: 'browser localStorage (development only)', appDataDir: '',
     appMode: 'development', supportsCoordinator: true, supportsStudent: true,
     supportsManagedAgent: false, supportsPortableSync: false, portableSyncConfigured: false,
-    secureStorage: false, managedAgentInstalled: false, managedAgentConfigured: false,
+    secureStorage: false, managedAgentInstalled: false, managedAgentConfigured: false, legacyPerMachineInstall: false,
   };
 }
 

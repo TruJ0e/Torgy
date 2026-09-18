@@ -1,6 +1,6 @@
 [package]
 name = "torgy"
-version = "0.4.3"
+version = "0.4.4"
 description = "Local-first academic coordination desktop application"
 authors = ["Torgy"]
 edition = "2021"
@@ -13,6 +13,10 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [[bin]]
 name = "torgy"
 path = "src/main.rs"
+
+[[bin]]
+name = "torgy-machine-agent"
+path = "src/bin/torgy-machine-agent.rs"
 
 [build-dependencies]
 tauri-build = { version = "2.6.1", features = [] }

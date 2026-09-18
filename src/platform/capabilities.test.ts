@@ -17,6 +17,7 @@ function runtime(overrides: Partial<RuntimeInfo> = {}): RuntimeInfo {
     secureStorage: true,
     managedAgentInstalled: false,
     managedAgentConfigured: false,
+    legacyPerMachineInstall: false,
     ...overrides,
   };
 }

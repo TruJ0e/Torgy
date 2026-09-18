@@ -17,7 +17,7 @@ Torgy 0.4.0 contains the complete application-side architecture that can be fini
 - Current-user Windows DPAPI protection for local Torgy state and locally cached connector credentials.
 - Encrypted student/coordinator synchronization envelopes using X25519 key agreement + ChaCha20-Poly1305 authenticated encryption.
 - One-time coordinator/student pairing codes with random mailbox identifiers.
-- Student transport through a SYSTEM scheduled task so the interactive student account never receives staff-share access.
+- Student transport through a protected Torgy Machine Agent scheduled as SYSTEM so the interactive student account never receives staff-share access.
 - Offline queues, versioning, idempotent envelopes, task aliases, deterministic duplicate detection, and human review for ambiguous duplicates.
 - Two-way Microsoft Outlook calendar synchronization using Entra public-client OAuth + PKCE. Outlook changes schedule work time only; they never rewrite academic due dates.
 - Outlook transaction IDs and Torgy task markers to reduce duplicate calendar events and support recovery after reinstall/restore.
@@ -49,22 +49,26 @@ There is no Torgy-hosted server and no telemetry by default.
 
 ## Student/coordinator transport
 
-The student UI does **not** receive credentials to the staff/faculty synchronization location. The Windows installer creates a local ProgramData spool and a scheduled task that runs `torgy.exe --sync-agent` as `SYSTEM` once per minute. The interactive app exchanges only encrypted packets with that local spool.
+The student UI does **not** receive credentials to the staff/faculty synchronization location. A separately installed Torgy Machine Agent owns the protected `%ProgramData%\Torgy` spool and runs `torgy-machine-agent.exe` as `SYSTEM` once per minute. The current-user desktop app exchanges only encrypted packets with that local spool.
 
 On a domain-managed university device, the SYSTEM worker can be authorized through the machine/device identity or another IT-approved service identity. The remote share ACL remains an IT responsibility. Torgy does not embed a reusable staff-share password.
 
-## One-installer experience
+## Hybrid Windows deployment
 
-The intended deployment is one Windows installer:
+Torgy uses two separate trust levels:
 
 ```text
-TorgySetup.exe
-  → UAC / managed deployment approval
-  → install Torgy
-  → create local spool + ACLs
-  → create SYSTEM sync task
-  → launch Torgy
+Torgy desktop installer
+  -> current-user install under LocalAppData
+  -> normal signed updates without UAC
+
+Torgy Machine Agent installer
+  -> one-time administrator / managed deployment
+  -> protected Program Files binary
+  -> SYSTEM sync task + ProgramData spool ACLs
 ```
+
+The SYSTEM task never executes the user-updatable Torgy desktop binary. Existing `%ProgramData%\Torgy` encrypted transport state is preserved when the Machine Agent is upgraded or reinstalled.
 
 First launch remains simple:
 
@@ -86,15 +90,16 @@ npm test
 npm run desktop:dev
 ```
 
-Build the Windows installer:
+Build the Windows desktop and Machine Agent installers:
 
 ```powershell
 npm run desktop:build
+npm run machine-agent:bundle
 ```
 
-The NSIS installer is generated under `src-tauri/target/release/bundle/nsis/`.
+Both the desktop NSIS installer and the one-time Machine Agent installer are generated under `src-tauri/target/release/bundle/nsis/`, so the existing Windows release workflow uploads both packages together.
 
-The installer is currently **per-machine** because the managed student synchronization worker runs as SYSTEM. University software deployment can remove the need for end users to handle elevation manually.
+The desktop installer is **current-user** and updates without administrator elevation. The optional Torgy Machine Agent is a separate per-machine package installed once by an administrator or university software deployment.
 
 ## Deployment defaults
 
