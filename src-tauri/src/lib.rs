@@ -25,6 +25,7 @@ struct RuntimeInfo {
     secure_storage: bool,
     managed_agent_installed: bool,
     managed_agent_configured: bool,
+    legacy_per_machine_install: bool,
 }
 
 #[derive(Serialize)]
@@ -60,6 +61,7 @@ fn runtime_info(app: AppHandle) -> Result<RuntimeInfo, String> {
         secure_storage: capabilities.secure_storage,
         managed_agent_installed,
         managed_agent_configured,
+        legacy_per_machine_install: sync::legacy_per_machine_install(),
     })
 }
 
@@ -345,23 +347,12 @@ async fn canvas_fetch_assignments(
         .map_err(|e| format!("Canvas sync worker failed: {e}"))?
 }
 
-pub fn handle_cli_mode() -> bool {
-    for arg in std::env::args().skip(1) {
-        if arg == "--sync-agent" {
-            if let Err(error) = sync::run_agent() {
-                eprintln!("Torgy managed sync agent stopped: {error}");
-            }
-            return true;
-        }
-        if let Some(encoded) = arg.strip_prefix("--configure-agent=") {
-            if let Err(error) = sync::configure_agent_cli(encoded) {
-                eprintln!("Torgy managed sync configuration failed: {error}");
-                std::process::exit(2);
-            }
-            return true;
-        }
-    }
-    false
+pub fn run_machine_agent() -> Result<(), String> {
+    sync::run_agent()
+}
+
+pub fn configure_machine_agent(encoded_root: &str) -> Result<(), String> {
+    sync::configure_agent_cli(encoded_root)
 }
 
 pub fn run() {

@@ -40,6 +40,9 @@ fn ensure_windows_icon() {
     }
 
     let path = Path::new("icons/icon.ico");
+    if path.exists() {
+        return;
+    }
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).expect("create icon directory");
     }

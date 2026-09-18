@@ -200,6 +200,7 @@ export interface RuntimeInfo {
   secureStorage: boolean;
   managedAgentInstalled: boolean;
   managedAgentConfigured: boolean;
+  legacyPerMachineInstall: boolean;
 }
 
 export interface DeploymentDefaults {

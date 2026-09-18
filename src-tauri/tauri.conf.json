@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Torgy",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "identifier": "com.trujoe.torgy",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -36,9 +36,8 @@
         "type": "offlineInstaller"
       },
       "nsis": {
-        "installMode": "perMachine",
-        "displayLanguageSelector": false,
-        "installerHooks": "./windows/hooks.nsh"
+        "installMode": "currentUser",
+        "displayLanguageSelector": false
       }
     },
     "createUpdaterArtifacts": false
@@ -53,5 +52,6 @@
         "installMode": "passive"
       }
     }
-  }
+  },
+  "mainBinaryName": "torgy"
 }

@@ -19,6 +19,7 @@ describe('readiness report', () => {
       secureStorage: true,
       managedAgentInstalled: false,
       managedAgentConfigured: false,
+    legacyPerMachineInstall: false,
     });
     expect(report.checks.find((item) => item.key === 'local-storage')?.status).toBe('ready');
     expect(report.checks.find((item) => item.key === 'outlook')?.status).toBe('blocked');

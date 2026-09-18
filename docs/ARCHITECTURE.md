@@ -33,7 +33,7 @@ The application snapshot is protected with Windows current-user DPAPI. A univers
 `%ProgramData%\Torgy\spool` contains encrypted transport packets only. The interactive user can write/read the opaque spool. Agent configuration remains restricted to SYSTEM/Administrators.
 
 ### Managed student sync worker
-The installer creates a short scheduled task that runs `torgy.exe --sync-agent` as SYSTEM once per minute. It moves encrypted packets between the local spool and the university-approved staff/faculty synchronization location. The student's interactive account does not receive the share credential or browse permission.
+The separately installed Torgy Machine Agent creates a scheduled task that runs the administrator-protected `torgy-machine-agent.exe` from Program Files as SYSTEM once per minute. The current-user Torgy executable is never a SYSTEM task target. The agent moves encrypted packets between the local spool and the university-approved staff/faculty synchronization location; the student interactive account receives neither the share credential nor browse permission.
 
 ### Coordinator transport
 Coordinator installations may use direct staff-drive access under the coordinator's authorized staff identity. The coordinator app still exchanges encrypted task envelopes rather than opening a shared live database.

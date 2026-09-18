@@ -25,3 +25,4 @@ secrets/
 Thumbs.db
 .tmp-*
 *.tsbuildinfo
+src-tauri/gen/

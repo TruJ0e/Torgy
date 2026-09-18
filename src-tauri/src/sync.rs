@@ -689,13 +689,26 @@ pub fn configure_agent_cli(encoded_root: &str) -> Result<(), String> {
 }
 
 #[cfg(target_os = "windows")]
+fn machine_agent_executable() -> Result<PathBuf, String> {
+    let base = std::env::var_os("ProgramW6432")
+        .or_else(|| std::env::var_os("ProgramFiles"))
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(r"C:\Program Files"));
+    let path = base
+        .join("Torgy Machine Agent")
+        .join("torgy-machine-agent.exe");
+    if !path.is_file() {
+        return Err("Torgy Machine Agent is not installed. University-managed synchronization requires the one-time machine-agent package.".into());
+    }
+    Ok(path)
+}
+#[cfg(target_os = "windows")]
 pub fn configure_agent_elevated(share_root: &str) -> Result<bool, String> {
     use std::ffi::OsStr;
     use std::os::windows::ffi::OsStrExt;
     use windows_sys::Win32::UI::Shell::ShellExecuteW;
     use windows_sys::Win32::UI::WindowsAndMessaging::SW_HIDE;
-    let exe =
-        std::env::current_exe().map_err(|e| format!("Could not locate Torgy executable: {e}"))?;
+    let exe = machine_agent_executable()?;
     let encoded = URL_SAFE_NO_PAD.encode(share_root.as_bytes());
     let args = format!("--configure-agent={encoded}");
     let wide = |s: &OsStr| s.encode_wide().chain(Some(0)).collect::<Vec<u16>>();
@@ -724,6 +737,19 @@ pub fn configure_agent_elevated(_share_root: &str) -> Result<bool, String> {
     Err("Managed sync agent is Windows-only.".into())
 }
 
+#[cfg(target_os = "windows")]
+pub fn legacy_per_machine_install() -> bool {
+    let base = std::env::var_os("ProgramW6432")
+        .or_else(|| std::env::var_os("ProgramFiles"))
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(r"C:\Program Files"));
+    base.join("Torgy").join("uninstall.exe").is_file()
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn legacy_per_machine_install() -> bool {
+    false
+}
 fn installed_task() -> bool {
     #[cfg(target_os = "windows")]
     {
@@ -741,22 +767,32 @@ fn installed_task() -> bool {
 
 pub fn agent_status() -> AgentStatus {
     let configured = agent_config_path().exists();
+    #[cfg(target_os = "windows")]
+    let protected_binary_installed = machine_agent_executable().is_ok();
+    #[cfg(not(target_os = "windows"))]
+    let protected_binary_installed = false;
+    let installed = installed_task() && protected_binary_installed;
     let status_path = spool_root().join("status.json");
     let status = fs::read(&status_path)
         .ok()
         .and_then(|b| serde_json::from_slice::<AgentStatusFile>(&b).ok());
-    let running = status
-        .as_ref()
-        .and_then(|s| chrono::DateTime::parse_from_rfc3339(&s.last_cycle_at).ok())
-        .map(|t| (chrono::Utc::now() - t.with_timezone(&chrono::Utc)).num_seconds() < 60)
-        .unwrap_or(false);
+    let running = installed
+        && status
+            .as_ref()
+            .and_then(|s| chrono::DateTime::parse_from_rfc3339(&s.last_cycle_at).ok())
+            .map(|t| (chrono::Utc::now() - t.with_timezone(&chrono::Utc)).num_seconds() < 60)
+            .unwrap_or(false);
     AgentStatus {
-        installed: installed_task(),
+        installed,
         configured,
         running,
         paired_mailbox_id: status.as_ref().and_then(|s| s.paired_mailbox_id.clone()),
         message: status.map(|s| s.message).unwrap_or_else(|| {
-            if configured {
+            if !installed && configured {
+                "Managed sync configuration exists, but the protected Torgy Machine Agent is not installed. Install the one-time administrator package to migrate managed sync.".into()
+            } else if !installed {
+                "Managed sync requires the one-time Torgy Machine Agent administrator package.".into()
+            } else if configured {
                 "Managed sync is configured but has not reported recently.".into()
             } else {
                 "Managed sync requires university drive configuration.".into()
