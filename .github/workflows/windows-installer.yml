@@ -52,7 +52,7 @@ jobs:
       - name: Build NSIS installer
         run: npm run desktop:build
       - name: Upload Windows release payload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: torgy-windows-update
           path: |
