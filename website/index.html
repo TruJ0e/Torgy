@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Torgy — The academic organizer that lives on your machine</title>
+  <meta name="description" content="Torgy is a free Windows desktop app for academic coordination. No accounts. No cloud. No telemetry. Your data never leaves your computer." />
+  <meta name="color-scheme" content="dark" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap nav-inner">
+      <a class="brand" href="#top" aria-label="Torgy home">
+        <span class="brand-mark" aria-hidden="true">T</span>
+        <span class="brand-name">Torgy</span>
+      </a>
+      <nav class="nav-links" id="nav-links">
+        <a href="#features">Features</a>
+        <a href="#local">How it stays local</a>
+        <a href="#download">Download</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+      <div class="nav-cta">
+        <a class="btn btn-ghost" href="https://github.com/TruJ0e/Torgy" target="_blank" rel="noopener">GitHub</a>
+        <a class="btn btn-primary" href="#download">Get Torgy free</a>
+      </div>
+      <button class="nav-toggle" id="nav-toggle" aria-label="Menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </header>
+
+  <main id="top">
+    <!-- HERO -->
+    <section class="hero">
+      <div class="wrap hero-inner">
+        <p class="eyebrow">Free Windows desktop app</p>
+        <h1>The academic organizer that lives <em>on your machine</em>.</h1>
+        <p class="lede">Torgy is a local-first desktop app for academic coordination &mdash; tasks, calendars, and student workflows in one workspace. No accounts. No cloud. No telemetry. Your data never leaves your computer.</p>
+        <div class="hero-cta">
+          <a class="btn btn-primary btn-lg" href="https://github.com/TruJ0e/Torgy-Releases/releases/download/v0.4.4/Torgy_0.4.4_x64-setup.exe">Download for Windows</a>
+          <a class="btn btn-ghost btn-lg" href="https://github.com/TruJ0e/Torgy" target="_blank" rel="noopener">View source on GitHub</a>
+        </div>
+        <p class="fineprint">v0.4.4 &middot; Windows 10/11 &middot; 64-bit &middot; Free forever</p>
+      </div>
+    </section>
+
+    <!-- TRUST STRIP -->
+    <section class="strip" aria-label="Guarantees">
+      <div class="wrap strip-inner">
+        <div class="strip-item"><span class="strip-icon" aria-hidden="true">&#10003;</span> No accounts</div>
+        <div class="strip-item"><span class="strip-icon" aria-hidden="true">&#10003;</span> No cloud</div>
+        <div class="strip-item"><span class="strip-icon" aria-hidden="true">&#10003;</span> No telemetry</div>
+        <div class="strip-item"><span class="strip-icon" aria-hidden="true">&#10003;</span> Free forever</div>
+        <div class="strip-item"><span class="strip-icon" aria-hidden="true">&#10003;</span> Works offline</div>
+      </div>
+    </section>
+
+    <!-- FEATURES -->
+    <section class="section" id="features">
+      <div class="wrap">
+        <p class="eyebrow">Features</p>
+        <h2>Everything a coordinator needs.<br />Nothing phoning home.</h2>
+        <div class="grid">
+          <article class="card">
+            <h3>Tasks &amp; calendar, separated right</h3>
+            <p>Weekly calendar with a clean split between <strong>schedule</strong> (when you work) and <strong>due dates</strong> (when it's due). Recurrence, priorities, and completion status built in.</p>
+          </article>
+          <article class="card">
+            <h3>Coordinator &amp; student modes</h3>
+            <p>One shared workspace with a coordinator <strong>MASTER</strong> view and single-student filtering. Student mode runs the same app with coordinator-only views hidden.</p>
+          </article>
+          <article class="card">
+            <h3>Info Dump with speech capture</h3>
+            <p>Capture thoughts fast with local Windows speech capture, then review and file them. AI-inferred dates are always suggestions &mdash; they never become authoritative on their own.</p>
+          </article>
+          <article class="card">
+            <h3>Two-way Outlook sync</h3>
+            <p>Sync your calendar with Microsoft Outlook via Entra OAuth. Outlook changes schedule work time only &mdash; your academic due dates are never rewritten.</p>
+          </article>
+          <article class="card">
+            <h3>Canvas assignment import</h3>
+            <p>Pull assignments straight from Canvas with official <strong>due_at</strong> dates preserved, plus possible-date detection from titles, modules, and syllabus text.</p>
+          </article>
+          <article class="card">
+            <h3>Encrypted coordinator sync</h3>
+            <p>Student/coordinator sync uses encrypted envelopes &mdash; X25519 key agreement with ChaCha20-Poly1305 authenticated encryption &mdash; and one-time pairing codes.</p>
+          </article>
+          <article class="card">
+            <h3>Protected local state</h3>
+            <p>Your data is encrypted with Windows DPAPI for the current user. Offline queues, versioning, deterministic duplicate detection, and human review for the ambiguous cases.</p>
+          </article>
+          <article class="card">
+            <h3>Backup &amp; restore</h3>
+            <p>Export a full backup and restore or migrate with schema validation. A built-in readiness check verifies storage, sync, Outlook, and backup health.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- HOW IT STAYS LOCAL -->
+    <section class="section section-alt" id="local">
+      <div class="wrap">
+        <p class="eyebrow">Architecture</p>
+        <h2>Local-first isn't a setting.<br />It's the architecture.</h2>
+        <p class="section-lede">Torgy is a Tauri + React desktop app. There is no Torgy server, no hosted database, no analytics pipeline. The whole system fits inside one box:</p>
+        <div class="arch">
+          <div class="arch-box">
+            <p class="arch-title">Torgy.exe &mdash; on your PC</p>
+            <ul>
+              <li>Bundled React UI</li>
+              <li>Rust local backend</li>
+              <li>DPAPI-protected local state</li>
+              <li>Local Windows speech capture</li>
+              <li>Local offline sync queue</li>
+              <li>Local encrypted sync identity</li>
+            </ul>
+          </div>
+          <div class="arch-out">
+            <p class="arch-title">The only things that ever leave your machine</p>
+            <p>Outbound connections happen <strong>only</strong> to services you explicitly approve:</p>
+            <ul>
+              <li>Microsoft Copilot (isolated bridge &mdash; never reads cookies, tokens, or passwords)</li>
+              <li>Microsoft Outlook / Graph (calendar sync)</li>
+              <li>Canvas (assignment import, if you enable it)</li>
+            </ul>
+            <p class="arch-note">Nothing else. No telemetry, no tracking, no "anonymous usage stats."</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DOWNLOAD -->
+    <section class="section" id="download">
+      <div class="wrap">
+        <p class="eyebrow">Download</p>
+        <h2>Get Torgy. It's free.</h2>
+        <div class="dl-card">
+          <div class="dl-main">
+            <h3>Torgy for Windows</h3>
+            <p class="dl-meta">v0.4.4 &middot; Windows 10/11 &middot; 64-bit &middot; ~208&nbsp;MB</p>
+            <p>Current-user install &mdash; no admin rights needed. Every release ships with a cryptographic signature (<code>.sig</code>) so you can verify what you downloaded.</p>
+            <div class="dl-actions">
+              <a class="btn btn-primary btn-lg" href="https://github.com/TruJ0e/Torgy-Releases/releases/download/v0.4.4/Torgy_0.4.4_x64-setup.exe">Download Torgy 0.4.4</a>
+              <a class="btn btn-ghost" href="https://github.com/TruJ0e/Torgy-Releases/releases" target="_blank" rel="noopener">All releases</a>
+            </div>
+          </div>
+          <div class="dl-side">
+            <h4>Machine Agent <span class="tag">optional</span></h4>
+            <p>For coordinator/student sync setups: a small companion service that owns the protected sync spool and runs the exchange once a minute. Most single-user installs don't need it.</p>
+            <a class="btn btn-ghost btn-sm" href="https://github.com/TruJ0e/Torgy-Releases/releases/download/v0.4.4/Torgy_Machine_Agent_0.4.4_x64-setup.exe">Download Machine Agent 0.4.4</a>
+          </div>
+        </div>
+        <p class="fineprint">New versions are published on GitHub &mdash; download the latest installer and run it to update.</p>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="section section-alt" id="faq">
+      <div class="wrap narrow">
+        <p class="eyebrow">FAQ</p>
+        <h2>Questions, answered.</h2>
+        <div class="faq">
+          <details>
+            <summary>Is Torgy really free?</summary>
+            <p>Yes. Torgy is a free download with no accounts, no subscriptions, and no paywalled features. It's a local tool, built to be useful &mdash; not to harvest users.</p>
+          </details>
+          <details>
+            <summary>Where does my data go?</summary>
+            <p>Nowhere. It stays on your computer, protected by Windows DPAPI encryption tied to your user account. There is no Torgy cloud to send it to.</p>
+          </details>
+          <details>
+            <summary>Does it work offline?</summary>
+            <p>Yes. Everything core &mdash; tasks, calendar, Info Dump, backups &mdash; works fully offline. Only the integrations you explicitly enable (Outlook, Canvas, Copilot) use the network.</p>
+          </details>
+          <details>
+            <summary>Who is Torgy for?</summary>
+            <p>Academic support coordinators managing many students, and students who want their tasks, dates, and calendar in one calm place. Coordinator mode gives the MASTER overview; student mode keeps it personal.</p>
+          </details>
+          <details>
+            <summary>What is the Machine Agent?</summary>
+            <p>An optional companion for coordinator/student sync setups. It runs as a system service, owns the protected sync spool, and exchanges only encrypted packets with the desktop app &mdash; student machines never get staff credentials.</p>
+          </details>
+          <details>
+            <summary>How do I get updates?</summary>
+            <p>New versions are published on the GitHub releases page. Download the latest installer and run it &mdash; your local data and settings carry over.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-inner">
+      <div class="footer-brand">
+        <span class="brand-mark" aria-hidden="true">T</span>
+        <span class="brand-name">Torgy</span>
+      </div>
+      <p class="footer-note">Free local-first academic organizer. &copy; <span id="year">2026</span> TruJoe Digital LLC.</p>
+      <div class="footer-links">
+        <a href="https://github.com/TruJ0e/Torgy" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/TruJ0e/Torgy-Releases" target="_blank" rel="noopener">Releases</a>
+        <a href="#download">Download</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
