@@ -17,11 +17,5 @@
   "observability": {
     "enabled": true
   },
-  "routes": [
-    {
-      "pattern": "torgy.trujoedigital.com",
-      "custom_domain": true
-    }
-  ],
   "workers_dev": true
 }
