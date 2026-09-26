@@ -23,7 +23,16 @@ const nsis = tauri.bundle?.windows?.nsis;
 if (tauri.mainBinaryName !== 'torgy') fail('Tauri mainBinaryName must explicitly target the user-facing torgy binary.');
 if (!String(pkg.scripts?.['desktop:build'] ?? '').includes('torgy-machine-agent') || !String(pkg.scripts?.['desktop:build'] ?? '').includes('build-machine-agent-installer.mjs')) fail('desktop:build must produce both the current-user desktop installer and Machine Agent package for the existing release workflow.');
 if (nsis?.installMode !== 'currentUser') fail('Desktop NSIS installer must be currentUser so routine Torgy updates never require elevation.');
-if (Object.prototype.hasOwnProperty.call(nsis ?? {}, 'installerHooks')) fail('Desktop NSIS installer must not run privileged installer hooks.');
+// One-time migration exception (0.4.4): the desktop installer may run exactly one
+// privileged hook — NSIS_HOOK_PREINSTALL in src-tauri/windows/hooks.nsh — which
+// removes the legacy per-machine 0.4.3 install that the auto-updater would
+// otherwise reinstall beside forever. Any other installerHooks value still fails:
+// routine Torgy updates must never require elevation.
+const hookSrc = fs.existsSync('src-tauri/windows/hooks.nsh') ? fs.readFileSync('src-tauri/windows/hooks.nsh', 'utf8') : '';
+const hookIsOneTimeMigration = nsis?.installerHooks === './windows/hooks.nsh'
+  && hookSrc.includes('NSIS_HOOK_PREINSTALL')
+  && hookSrc.includes('TORGY_LEGACY_KEY');
+if (Object.prototype.hasOwnProperty.call(nsis ?? {}, 'installerHooks') && !hookIsOneTimeMigration) fail('Desktop NSIS installer must not run privileged installer hooks.');
 if (tauri.bundle?.windows?.webviewInstallMode?.type !== 'offlineInstaller') fail('Windows bundle must carry the offline WebView2 installer so end-user setup does not depend on a download.');
 if (!String(tauri.app?.security?.csp ?? '').includes("default-src 'self'")) fail('Tauri CSP no longer defaults to self-only content.');
 
