@@ -21,7 +21,9 @@ concurrency:
 
 jobs:
   build-windows:
-    runs-on: torgy-windows
+    # GitHub-hosted: the self-hosted torgy-windows machine enforces Smart App
+    # Control, which blocks unsigned cargo build scripts (CodeIntegrity 3077).
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -30,6 +32,9 @@ jobs:
       - name: Release preflight
         run: node scripts/release-preflight.mjs
       - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: src-tauri
       - name: Install JavaScript dependencies
         run: npm install --no-audit --no-fund --legacy-peer-deps
       - name: Verify public release is generic
