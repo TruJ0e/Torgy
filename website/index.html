@@ -16,10 +16,9 @@
         <span class="brand-name">Torgy</span>
       </a>
       <nav class="nav-links" id="nav-links">
-        <a href="#features">Features</a>
-        <a href="#local">How it stays local</a>
+        <a href="#preview">Preview</a>
+        <a href="#highlights">Why Torgy</a>
         <a href="#download">Download</a>
-        <a href="#faq">FAQ</a>
       </nav>
       <div class="nav-cta">
         <a class="btn btn-ghost" href="https://github.com/TruJ0e/Torgy" target="_blank" rel="noopener">GitHub</a>
@@ -37,95 +36,87 @@
       <div class="wrap hero-inner">
         <p class="eyebrow">Free Windows desktop app</p>
         <h1>The academic organizer that lives <em>on your machine</em>.</h1>
-        <p class="lede">Torgy is a local-first desktop app for academic coordination &mdash; tasks, calendars, and student workflows in one workspace. No accounts. No cloud. No telemetry. Your data never leaves your computer.</p>
+        <p class="lede">Tasks, calendars, and student workflows in one workspace. No accounts. No cloud. No telemetry.</p>
         <div class="hero-cta">
           <a class="btn btn-primary btn-lg" href="https://github.com/TruJ0e/Torgy-Releases/releases/download/v0.4.4/Torgy_0.4.4_x64-setup.exe">Download for Windows</a>
-          <a class="btn btn-ghost btn-lg" href="https://github.com/TruJ0e/Torgy" target="_blank" rel="noopener">View source on GitHub</a>
         </div>
         <p class="fineprint">v0.4.4 &middot; Windows 10/11 &middot; 64-bit &middot; Free forever</p>
       </div>
     </section>
 
-    <!-- TRUST STRIP -->
-    <section class="strip" aria-label="Guarantees">
-      <div class="wrap strip-inner">
-        <div class="strip-item"><span class="strip-icon" aria-hidden="true">&#10003;</span> No accounts</div>
-        <div class="strip-item"><span class="strip-icon" aria-hidden="true">&#10003;</span> No cloud</div>
-        <div class="strip-item"><span class="strip-icon" aria-hidden="true">&#10003;</span> No telemetry</div>
-        <div class="strip-item"><span class="strip-icon" aria-hidden="true">&#10003;</span> Free forever</div>
-        <div class="strip-item"><span class="strip-icon" aria-hidden="true">&#10003;</span> Works offline</div>
-      </div>
-    </section>
-
-    <!-- FEATURES -->
-    <section class="section" id="features">
+    <!-- PRODUCT PREVIEW -->
+    <!--
+      ═══════════════════════════════════════════════════════════════════
+      PRODUCT PREVIEW — placeholder frames (no real screenshots yet)
+      ───────────────────────────────────────────────────────────────────
+      TO SWAP IN REAL SCREENSHOTS:
+        1. Save PNGs under website/assets/ with these exact names:
+             assets/screenshot-workspace.png   →  main workspace view
+             assets/screenshot-calendar.png    →  weekly calendar view
+             assets/screenshot-infodump.png    →  Info Dump view
+        2. In each .shot block below, delete the <div class="shot-placeholder">
+           and uncomment the matching <img> line.
+        3. Keep the 16:10 aspect ratio — CSS crops with object-fit: cover.
+      ═══════════════════════════════════════════════════════════════════
+    -->
+    <section class="preview" id="preview">
       <div class="wrap">
-        <p class="eyebrow">Features</p>
-        <h2>Everything a coordinator needs.<br />Nothing phoning home.</h2>
-        <div class="grid">
-          <article class="card">
-            <h3>Tasks &amp; calendar, separated right</h3>
-            <p>Weekly calendar with a clean split between <strong>schedule</strong> (when you work) and <strong>due dates</strong> (when it's due). Recurrence, priorities, and completion status built in.</p>
-          </article>
-          <article class="card">
-            <h3>Coordinator &amp; student modes</h3>
-            <p>One shared workspace with a coordinator <strong>MASTER</strong> view and single-student filtering. Student mode runs the same app with coordinator-only views hidden.</p>
-          </article>
-          <article class="card">
-            <h3>Info Dump with speech capture</h3>
-            <p>Capture thoughts fast with local Windows speech capture, then review and file them. AI-inferred dates are always suggestions &mdash; they never become authoritative on their own.</p>
-          </article>
-          <article class="card">
-            <h3>Two-way Outlook sync</h3>
-            <p>Sync your calendar with Microsoft Outlook via Entra OAuth. Outlook changes schedule work time only &mdash; your academic due dates are never rewritten.</p>
-          </article>
-          <article class="card">
-            <h3>Canvas assignment import</h3>
-            <p>Pull assignments straight from Canvas with official <strong>due_at</strong> dates preserved, plus possible-date detection from titles, modules, and syllabus text.</p>
-          </article>
-          <article class="card">
-            <h3>Encrypted coordinator sync</h3>
-            <p>Student/coordinator sync uses encrypted envelopes &mdash; X25519 key agreement with ChaCha20-Poly1305 authenticated encryption &mdash; and one-time pairing codes.</p>
-          </article>
-          <article class="card">
-            <h3>Protected local state</h3>
-            <p>Your data is encrypted with Windows DPAPI for the current user. Offline queues, versioning, deterministic duplicate detection, and human review for the ambiguous cases.</p>
-          </article>
-          <article class="card">
-            <h3>Backup &amp; restore</h3>
-            <p>Export a full backup and restore or migrate with schema validation. A built-in readiness check verifies storage, sync, Outlook, and backup health.</p>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <!-- HOW IT STAYS LOCAL -->
-    <section class="section section-alt" id="local">
-      <div class="wrap">
-        <p class="eyebrow">Architecture</p>
-        <h2>Local-first isn't a setting.<br />It's the architecture.</h2>
-        <p class="section-lede">Torgy is a Tauri + React desktop app. There is no Torgy server, no hosted database, no analytics pipeline. The whole system fits inside one box:</p>
-        <div class="arch">
-          <div class="arch-box">
-            <p class="arch-title">Torgy.exe &mdash; on your PC</p>
-            <ul>
-              <li>Bundled React UI</li>
-              <li>Rust local backend</li>
-              <li>DPAPI-protected local state</li>
-              <li>Local Windows speech capture</li>
-              <li>Local offline sync queue</li>
-              <li>Local encrypted sync identity</li>
-            </ul>
+        <p class="eyebrow">Product preview</p>
+        <h2>See Torgy in action.</h2>
+        <div class="shots">
+          <div class="shot">
+            <!-- <img src="assets/screenshot-workspace.png" alt="Torgy main workspace" loading="lazy" /> -->
+            <div class="shot-placeholder"><span>App screenshot &mdash; coming soon</span></div>
+            <p class="shot-caption">Main workspace</p>
           </div>
-          <div class="arch-out">
-            <p class="arch-title">The only things that ever leave your machine</p>
-            <p>Outbound connections happen <strong>only</strong> to services you explicitly approve:</p>
-            <ul>
-              <li>Microsoft Copilot (isolated bridge &mdash; never reads cookies, tokens, or passwords)</li>
-              <li>Microsoft Outlook / Graph (calendar sync)</li>
-              <li>Canvas (assignment import, if you enable it)</li>
-            </ul>
-            <p class="arch-note">Nothing else. No telemetry, no tracking, no "anonymous usage stats."</p>
+          <div class="shot">
+            <!-- <img src="assets/screenshot-calendar.png" alt="Torgy weekly calendar" loading="lazy" /> -->
+            <div class="shot-placeholder"><span>App screenshot &mdash; coming soon</span></div>
+            <p class="shot-caption">Weekly calendar</p>
+          </div>
+          <div class="shot">
+            <!-- <img src="assets/screenshot-infodump.png" alt="Torgy Info Dump" loading="lazy" /> -->
+            <div class="shot-placeholder"><span>App screenshot &mdash; coming soon</span></div>
+            <p class="shot-caption">Info Dump</p>
+          </div>
+        </div>
+        <p class="preview-note">Real app screenshots are on the way &mdash; the frames above are placeholders.</p>
+      </div>
+    </section>
+
+    <!-- KEY POINTS -->
+    <section class="section section-alt" id="highlights">
+      <div class="wrap">
+        <p class="eyebrow">Why Torgy</p>
+        <h2>Simple where it counts.</h2>
+        <div class="points">
+          <div class="point">
+            <span class="point-icon" aria-hidden="true">&#10003;</span>
+            <div>
+              <h3>Tasks, calendar &amp; student workflows in one workspace</h3>
+              <p>A weekly calendar that keeps <strong>schedule</strong> (when you work) separate from <strong>due dates</strong> (when it's due), with recurrence and priorities built in.</p>
+            </div>
+          </div>
+          <div class="point">
+            <span class="point-icon" aria-hidden="true">&#10003;</span>
+            <div>
+              <h3>Coordinator &amp; student modes</h3>
+              <p>One shared workspace with a coordinator MASTER overview and single-student filtering. Student mode hides coordinator-only views.</p>
+            </div>
+          </div>
+          <div class="point">
+            <span class="point-icon" aria-hidden="true">&#10003;</span>
+            <div>
+              <h3>Works with the tools you already use</h3>
+              <p>Two-way Outlook calendar sync and Canvas assignment import &mdash; the only connections that ever leave your machine, and only if you enable them.</p>
+            </div>
+          </div>
+          <div class="point">
+            <span class="point-icon" aria-hidden="true">&#10003;</span>
+            <div>
+              <h3>Your data never leaves your computer</h3>
+              <p>No accounts, no cloud, no telemetry. Local state is encrypted with Windows DPAPI, and everything core works fully offline.</p>
+            </div>
           </div>
         </div>
       </div>
@@ -153,40 +144,6 @@
           </div>
         </div>
         <p class="fineprint">New versions are published on GitHub &mdash; download the latest installer and run it to update.</p>
-      </div>
-    </section>
-
-    <!-- FAQ -->
-    <section class="section section-alt" id="faq">
-      <div class="wrap narrow">
-        <p class="eyebrow">FAQ</p>
-        <h2>Questions, answered.</h2>
-        <div class="faq">
-          <details>
-            <summary>Is Torgy really free?</summary>
-            <p>Yes. Torgy is a free download with no accounts, no subscriptions, and no paywalled features. It's a local tool, built to be useful &mdash; not to harvest users.</p>
-          </details>
-          <details>
-            <summary>Where does my data go?</summary>
-            <p>Nowhere. It stays on your computer, protected by Windows DPAPI encryption tied to your user account. There is no Torgy cloud to send it to.</p>
-          </details>
-          <details>
-            <summary>Does it work offline?</summary>
-            <p>Yes. Everything core &mdash; tasks, calendar, Info Dump, backups &mdash; works fully offline. Only the integrations you explicitly enable (Outlook, Canvas, Copilot) use the network.</p>
-          </details>
-          <details>
-            <summary>Who is Torgy for?</summary>
-            <p>Academic support coordinators managing many students, and students who want their tasks, dates, and calendar in one calm place. Coordinator mode gives the MASTER overview; student mode keeps it personal.</p>
-          </details>
-          <details>
-            <summary>What is the Machine Agent?</summary>
-            <p>An optional companion for coordinator/student sync setups. It runs as a system service, owns the protected sync spool, and exchanges only encrypted packets with the desktop app &mdash; student machines never get staff credentials.</p>
-          </details>
-          <details>
-            <summary>How do I get updates?</summary>
-            <p>New versions are published on the GitHub releases page. Download the latest installer and run it &mdash; your local data and settings carry over.</p>
-          </details>
-        </div>
       </div>
     </section>
   </main>
