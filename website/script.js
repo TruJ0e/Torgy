@@ -1,3 +1,5 @@
+// Clickjacking defense: refuse to run inside a foreign frame.
+if (window.top !== window.self) { window.top.location = window.self.location; }
 // Torgy landing site — tiny interactions only.
 (function () {
   // Mobile nav
