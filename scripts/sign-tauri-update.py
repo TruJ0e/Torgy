@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import os
 import time
 from pathlib import Path
 
@@ -18,15 +19,17 @@ def main() -> None:
     parser.add_argument("artifact", type=Path)
     parser.add_argument("--private-key", required=True, type=Path)
     parser.add_argument("--public-key", required=True, type=Path)
-    parser.add_argument("--password", default="")
+    parser.add_argument("--password", default="", help="Key password; falls back to "
+                        "TORGY_UPDATER_KEY_PASSWORD env var when empty.")
     args = parser.parse_args()
+    password = args.password or os.environ.get("TORGY_UPDATER_KEY_PASSWORD", "")
 
     artifact = args.artifact.resolve()
     secret = minisign.SecretKey.from_bytes(decode_tauri_key(args.private_key))
     public = minisign.PublicKey.from_bytes(decode_tauri_key(args.public_key))
 
     with secret:
-        secret.decrypt(args.password)
+        secret.decrypt(password)
         signature = secret.sign_file(
             artifact,
             prehash=True,
