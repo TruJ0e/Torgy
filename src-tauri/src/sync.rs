@@ -9,7 +9,7 @@ use chacha20poly1305::{
     aead::{Aead, Payload},
     ChaCha20Poly1305, KeyInit, Nonce,
 };
-use rand::{rngs::OsRng, RngCore};
+use rand::{rngs::OsRng, TryRngCore};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -167,7 +167,7 @@ fn identity(app: &AppHandle) -> Result<IdentityFile, String> {
             .map_err(|e| format!("Could not read local sync identity: {e}"));
     }
     let mut private = [0u8; 32];
-    OsRng.fill_bytes(&mut private);
+    OsRng.try_fill_bytes(&mut private).expect("os rng");
     let secret = StaticSecret::from(private);
     let public = PublicKey::from(&secret);
     let file = IdentityFile {
@@ -225,7 +225,7 @@ pub fn seal_envelope(
     let cipher = ChaCha20Poly1305::new_from_slice(&key)
         .map_err(|_| "Could not initialize sync encryption.".to_string())?;
     let mut nonce_bytes = [0u8; 12];
-    OsRng.fill_bytes(&mut nonce_bytes);
+    OsRng.try_fill_bytes(&mut nonce_bytes).expect("os rng");
     let plaintext = serde_json::to_vec(envelope)
         .map_err(|e| format!("Could not serialize sync envelope: {e}"))?;
     let ciphertext = cipher
@@ -289,7 +289,7 @@ pub fn open_packet(
 fn pair_code() -> String {
     const ALPHABET: &[u8] = b"ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     let mut random = [0u8; 12];
-    OsRng.fill_bytes(&mut random);
+    OsRng.try_fill_bytes(&mut random).expect("os rng");
     random
         .iter()
         .map(|b| ALPHABET[*b as usize % ALPHABET.len()] as char)

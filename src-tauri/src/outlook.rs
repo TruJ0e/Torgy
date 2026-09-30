@@ -5,7 +5,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
-use rand::{rngs::OsRng, RngCore};
+use rand::{rngs::OsRng, TryRngCore};
 use reqwest::blocking::{Client, Response};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -175,11 +175,11 @@ pub fn connect(app: &AppHandle, tenant_id: &str, client_id: &str) -> Result<Acco
     let redirect_uri = format!("http://localhost:{port}");
 
     let mut verifier_bytes = [0u8; 48];
-    OsRng.fill_bytes(&mut verifier_bytes);
+    OsRng.try_fill_bytes(&mut verifier_bytes).expect("os rng");
     let verifier = URL_SAFE_NO_PAD.encode(verifier_bytes);
     let challenge = URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()));
     let mut state_bytes = [0u8; 24];
-    OsRng.fill_bytes(&mut state_bytes);
+    OsRng.try_fill_bytes(&mut state_bytes).expect("os rng");
     let state = URL_SAFE_NO_PAD.encode(state_bytes);
 
     let mut auth = Url::parse(&authorize_endpoint(tenant_id)).map_err(|e| e.to_string())?;
