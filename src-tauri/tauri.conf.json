@@ -45,7 +45,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEFENkNGRDhGMEIzNEZBQTYKUldTbStqUUxqLzFzcmJSMmZSblFOTExYZ3dzU3g4bnBVSlJld1J4SG44R3BaMzlKT3gxRlpETmMK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXkgODhBNEZDREM1RTU5NTQ0NQpSV1NJcFB6Y1hsbFVSWmpOTjkrRnVYWStjaGFZcE9jczJ3T1lSMVM1aU5SeGE2dzQzNThmN25oeA==",
       "endpoints": [
         "https://github.com/TruJ0e/Torgy-Releases/releases/latest/download/latest.json"
       ],
