@@ -91,8 +91,13 @@ function utcForGraph(localDateTime: string) {
 }
 
 function durationMinutes(event: GraphEvent) {
-  const start = event.start?.dateTime ? Date.parse(event.start.dateTime.endsWith('Z') ? event.start.dateTime : `${event.start.dateTime}Z`) : NaN;
-  const end = event.end?.dateTime ? Date.parse(event.end.dateTime.endsWith('Z') ? event.end.dateTime : `${event.end.dateTime}Z`) : NaN;
+  const parseGraphDate = (value: string | null | undefined) => {
+    if (!value) return NaN;
+    // Same offset handling as graphDateToLocal: accept Z or ±HH:MM, else assume UTC
+    return Date.parse(value.endsWith('Z') || /[+-]\d\d:\d\d$/.test(value) ? value : `${value}Z`);
+  };
+  const start = parseGraphDate(event.start?.dateTime);
+  const end = parseGraphDate(event.end?.dateTime);
   if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return 30;
   return Math.max(5, Math.round((end - start) / 60000));
 }

@@ -150,6 +150,7 @@ export function mergeDuplicateTasks(a: Task, b: Task, canonicalId: string = a.id
   const possible = !confirmed
     ? (a.dateConfidence === 'possible' ? a : b.dateConfidence === 'possible' ? b : null)
     : null;
+  const other = confirmed === a ? b : a;
 
   const notes = [a.notes, b.notes].map((x) => x.trim()).filter(Boolean);
 
@@ -157,7 +158,7 @@ export function mergeDuplicateTasks(a: Task, b: Task, canonicalId: string = a.id
     ...older,
     ...newer,
     id: canonicalId,
-    dueDate: confirmed?.dueDate ?? null,
+    dueDate: confirmed?.dueDate ?? other.dueDate ?? null,
     possibleDate: confirmed ? null : possible?.possibleDate ?? null,
     dateConfidence: confirmed ? 'confirmed' : possible ? 'possible' : 'undated',
     sourceRecordId: a.sourceRecordId ?? b.sourceRecordId,

@@ -67,7 +67,7 @@ export async function syncCanvasAssignments(snapshot: AppSnapshot) {
       version: 1,
       deletedAt: null,
     };
-    const result = reconcileIncoming(incoming, tasks.filter((task) => !task.deletedAt), snapshot.taskAliases);
+    const result = reconcileIncoming(incoming, tasks.filter((task) => !task.deletedAt), taskAliases);
     if (result.action === 'insert') { tasks = [result.task, ...tasks]; inserted += 1; }
     else if (result.action === 'update') { tasks = tasks.map((task) => task.id === result.task.id ? result.task : task); updated += 1; }
     else if (result.action === 'merge') {

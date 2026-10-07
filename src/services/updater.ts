@@ -11,6 +11,7 @@ export interface AppUpdateStatus {
 }
 
 let pendingUpdate: Update | null = null;
+let checkGeneration = 0;
 
 function isTauriRuntime() {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
@@ -21,11 +22,18 @@ export async function checkForAppUpdate(): Promise<AppUpdateStatus> {
     return { supported: false, available: false, currentVersion: 'development', version: null, notes: null, message: 'Updates are available in the installed desktop app.' };
   }
 
+  const generation = ++checkGeneration;
   const [{ check }, currentVersion] = await Promise.all([
     import('@tauri-apps/plugin-updater'),
     getVersion(),
   ]);
   const update = await check({ timeout: 15_000 });
+  // Only the latest check wins; stale checks discard their handle instead of
+  // clobbering a newer pendingUpdate that may be mid-install.
+  if (generation !== checkGeneration) {
+    if (update) await update.close().catch(() => undefined);
+    return { supported: true, available: false, currentVersion, version: null, notes: null, message: 'A newer update check superseded this one.' };
+  }
   if (pendingUpdate) await pendingUpdate.close().catch(() => undefined);
   pendingUpdate = update;
 

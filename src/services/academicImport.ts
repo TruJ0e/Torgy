@@ -172,9 +172,10 @@ export function importAcademicRecords(snapshot: AppSnapshot, records: AcademicIm
   let inserted = 0;
   let updated = 0;
   let review = 0;
+  const unresolved: AcademicImportRecord[] = [];
   for (const record of records) {
     const studentId = findStudentId(record, snapshot);
-    if (!studentId) { review += 1; continue; }
+    if (!studentId) { unresolved.push(record); continue; }
     const incoming: Task = {
       id: crypto.randomUUID(),
       studentId,
@@ -198,7 +199,7 @@ export function importAcademicRecords(snapshot: AppSnapshot, records: AcademicIm
       version: 1,
       deletedAt: null,
     };
-    const result = reconcileIncoming(incoming, tasks.filter((task) => !task.deletedAt), snapshot.taskAliases);
+    const result = reconcileIncoming(incoming, tasks.filter((task) => !task.deletedAt), taskAliases);
     if (result.action === 'insert') { tasks = [result.task, ...tasks]; inserted += 1; }
     else if (result.action === 'update' || result.action === 'merge') {
       const id = result.action === 'merge' ? result.duplicateOf : result.task.id;
@@ -213,5 +214,5 @@ export function importAcademicRecords(snapshot: AppSnapshot, records: AcademicIm
       review += 1;
     }
   }
-  return { snapshot: { ...snapshot, tasks, taskAliases, duplicateReviews, updatedAt: now }, inserted, updated, review };
+  return { snapshot: { ...snapshot, tasks, taskAliases, duplicateReviews, updatedAt: now }, inserted, updated, review, unresolved };
 }
