@@ -26,7 +26,7 @@
     "release:windows-update": "powershell -ExecutionPolicy Bypass -File scripts/release-windows-update.ps1"
   },
   "dependencies": {
-    "@tauri-apps/api": "2.11.1",
+    "@tauri-apps/api": "2.12.0",
     "@tauri-apps/plugin-updater": "2.11.0",
     "lucide-react": "1.47.0",
     "react": "19.3.0",
