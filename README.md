@@ -1,12 +1,12 @@
-# Torgy
+# TruCalenZer
 
-Torgy is a **local-first Windows desktop application** for academic coordination. The repository contains code and synthetic fixtures only. Real student records, university credentials, Canvas tokens, Microsoft tokens, backups, and local Torgy state must never be committed.
+TruCalenZer is a **local-first Windows desktop application** for academic coordination. The repository contains code and synthetic fixtures only. Real student records, university credentials, Canvas tokens, Microsoft tokens, backups, and local TruCalenZer state must never be committed.
 
 ## Current implementation
 
-Torgy 0.4.0 contains the complete application-side architecture that can be finished without university-specific credentials or infrastructure values:
+TruCalenZer 0.4.0 contains the complete application-side architecture that can be finished without university-specific credentials or infrastructure values:
 
-- Tauri + React Windows desktop shell; no hosted Torgy backend or cloud database.
+- Tauri + React Windows desktop shell; no hosted TruCalenZer backend or cloud database.
 - One shared workspace with coordinator `MASTER` / single-student filtering.
 - Student mode using the same codebase with coordinator-only views hidden.
 - Tasks, weekly calendar, schedule-vs-due-date separation, recurrence fields, priorities, and completion status.
@@ -14,13 +14,13 @@ Torgy 0.4.0 contains the complete application-side architecture that can be fini
 - Local Windows speech capture for Info Dump.
 - Info Dump review flow plus an isolated Microsoft Copilot WebView/DOM bridge.
 - Copilot diagnostic probe that reports visible input/send/response candidates without reading cookies, tokens, localStorage, sessionStorage, or passwords.
-- Current-user Windows DPAPI protection for local Torgy state and locally cached connector credentials.
+- Current-user Windows DPAPI protection for local TruCalenZer state and locally cached connector credentials.
 - Encrypted student/coordinator synchronization envelopes using X25519 key agreement + ChaCha20-Poly1305 authenticated encryption.
 - One-time coordinator/student pairing codes with random mailbox identifiers.
-- Student transport through a protected Torgy Machine Agent scheduled as SYSTEM so the interactive student account never receives staff-share access.
+- Student transport through a protected TruCalenZer Machine Agent scheduled as SYSTEM so the interactive student account never receives staff-share access.
 - Offline queues, versioning, idempotent envelopes, task aliases, deterministic duplicate detection, and human review for ambiguous duplicates.
 - Two-way Microsoft Outlook calendar synchronization using Entra public-client OAuth + PKCE. Outlook changes schedule work time only; they never rewrite academic due dates.
-- Outlook transaction IDs and Torgy task markers to reduce duplicate calendar events and support recovery after reinstall/restore.
+- Outlook transaction IDs and TruCalenZer task markers to reduce duplicate calendar events and support recovery after reinstall/restore.
 - Local academic import from JSON/CSV/TSV/Docs-style exports.
 - Optional direct Canvas connector with pagination, official `due_at` preservation, and Possible-date detection from title, description, matching module item, or assignment-adjacent syllabus text.
 - Backup export plus schema-validated restore/migration.
@@ -31,7 +31,7 @@ Torgy 0.4.0 contains the complete application-side architecture that can be fini
 ## Runtime boundary
 
 ```text
-Torgy.exe
+TruCalenZer.exe
 ├─ bundled React UI
 ├─ Rust local backend
 ├─ DPAPI-protected local state
@@ -45,30 +45,30 @@ Torgy.exe
    └─ university staff/faculty sync share via approved device/service identity
 ```
 
-There is no Torgy-hosted server and no telemetry by default.
+There is no TruCalenZer-hosted server and no telemetry by default.
 
 ## Student/coordinator transport
 
-The student UI does **not** receive credentials to the staff/faculty synchronization location. A separately installed Torgy Machine Agent owns the protected `%ProgramData%\Torgy` spool and runs `torgy-machine-agent.exe` as `SYSTEM` once per minute. The current-user desktop app exchanges only encrypted packets with that local spool.
+The student UI does **not** receive credentials to the staff/faculty synchronization location. A separately installed TruCalenZer Machine Agent owns the protected `%ProgramData%\TruCalenZer` spool and runs `trucalenzer-machine-agent.exe` as `SYSTEM` once per minute. The current-user desktop app exchanges only encrypted packets with that local spool.
 
-On a domain-managed university device, the SYSTEM worker can be authorized through the machine/device identity or another IT-approved service identity. The remote share ACL remains an IT responsibility. Torgy does not embed a reusable staff-share password.
+On a domain-managed university device, the SYSTEM worker can be authorized through the machine/device identity or another IT-approved service identity. The remote share ACL remains an IT responsibility. TruCalenZer does not embed a reusable staff-share password.
 
 ## Hybrid Windows deployment
 
-Torgy uses two separate trust levels:
+TruCalenZer uses two separate trust levels:
 
 ```text
-Torgy desktop installer
+TruCalenZer desktop installer
   -> current-user install under LocalAppData
   -> normal signed updates without UAC
 
-Torgy Machine Agent installer
+TruCalenZer Machine Agent installer
   -> one-time administrator / managed deployment
   -> protected Program Files binary
   -> SYSTEM sync task + ProgramData spool ACLs
 ```
 
-The SYSTEM task never executes the user-updatable Torgy desktop binary. Existing `%ProgramData%\Torgy` encrypted transport state is preserved when the Machine Agent is upgraded or reinstalled.
+The SYSTEM task never executes the user-updatable TruCalenZer desktop binary. Existing `%ProgramData%\TruCalenZer` encrypted transport state is preserved when the Machine Agent is upgraded or reinstalled.
 
 First launch remains simple:
 
@@ -99,23 +99,23 @@ npm run machine-agent:bundle
 
 Both the desktop NSIS installer and the one-time Machine Agent installer are generated under `src-tauri/target/release/bundle/nsis/`, so the existing Windows release workflow uploads both packages together.
 
-The desktop installer is **current-user** and updates without administrator elevation. The optional Torgy Machine Agent is a separate per-machine package installed once by an administrator or university software deployment.
+The desktop installer is **current-user** and updates without administrator elevation. The optional TruCalenZer Machine Agent is a separate per-machine package installed once by an administrator or university software deployment.
 
 ## Deployment defaults
 
 `src-tauri/deployment.defaults.json` contains only non-secret deployment values. GitHub repository/organization variables can inject these during CI:
 
-- `TORGY_COPILOT_URL`
-- `TORGY_OUTLOOK_TENANT_ID`
-- `TORGY_OUTLOOK_CLIENT_ID`
-- `TORGY_SYNC_SHARE_PATH`
-- `TORGY_CANVAS_BASE_URL`
+- `TRUCALENZER_COPILOT_URL`
+- `TRUCALENZER_OUTLOOK_TENANT_ID`
+- `TRUCALENZER_OUTLOOK_CLIENT_ID`
+- `TRUCALENZER_SYNC_SHARE_PATH`
+- `TRUCALENZER_CANVAS_BASE_URL`
 
 Passwords, access tokens, refresh tokens, client secrets, or student data are intentionally unsupported as build-time defaults.
 
 ## Copilot bridge
 
-The installed app opens the university-approved Microsoft Copilot experience in a separate WebView profile. The remote Microsoft page is not given Tauri IPC access. Torgy's Rust host interacts only with visible DOM controls.
+The installed app opens the university-approved Microsoft Copilot experience in a separate WebView profile. The remote Microsoft page is not given Tauri IPC access. TruCalenZer's Rust host interacts only with visible DOM controls.
 
 Info Dump flow:
 
@@ -127,14 +127,14 @@ local microphone
   → strict JSON suggestions
   → local validation
   → human review
-  → local Torgy task(s)
+  → local TruCalenZer task(s)
 ```
 
 Run the in-app **Copilot bridge → Test** action once against the real university session. The diagnostic reports candidate input, send, and response elements so Microsoft DOM differences can be handled without exposing authentication material.
 
 ## Academic-date safety
 
-Torgy deliberately distinguishes academic truth from suggestions:
+TruCalenZer deliberately distinguishes academic truth from suggestions:
 
 - Canvas `due_at` or a human-confirmed date → **Confirmed**.
 - Date detected in title, description, module, syllabus vicinity, speech, Copilot, or local export text → **Possible**.
@@ -144,7 +144,7 @@ Only humans or authoritative source dates promote a Possible date to Confirmed.
 
 ## Backup and restore
 
-Settings can export the current local snapshot as JSON and restore a supported Torgy backup. Restore runs schema migration before the snapshot is accepted. Backups may contain student data in production and therefore must be stored only in an approved location.
+Settings can export the current local snapshot as JSON and restore a supported TruCalenZer backup. Restore runs schema migration before the snapshot is accepted. Backups may contain student data in production and therefore must be stored only in an approved location.
 
 ## Verification available in this repository
 
@@ -170,7 +170,7 @@ See `SECURITY.md` and `docs/` for the trust boundaries and deployment details.
 
 ## Recovered Codex web application
 
-The original Codex-built Torgy web application from August 29, 2026 is preserved in `apps/web-codex/` alongside the newer local-first Windows application. The desktop implementation remains the primary root application; the recovered web implementation is kept runnable so its interface, scheduling, capture, Cloudflare/Sites integration, and earlier product behavior can be compared or selectively migrated without overwriting the newer architecture.
+The original Codex-built TruCalenZer web application from August 29, 2026 is preserved in `apps/web-codex/` alongside the newer local-first Windows application. The desktop implementation remains the primary root application; the recovered web implementation is kept runnable so its interface, scheduling, capture, Cloudflare/Sites integration, and earlier product behavior can be compared or selectively migrated without overwriting the newer architecture.
 
 Run the recovered web application independently:
 
@@ -188,3 +188,4 @@ npm run web:build
 ```
 
 See `docs/WEB_CODEX_ORIGIN.md` for provenance and the recovered build timeline.
+# CI retrigger
