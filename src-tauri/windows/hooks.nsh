@@ -16,17 +16,17 @@
 !include "FileFunc.nsh"
 !include "WordFunc.nsh"
 
-!define TORGY_LEGACY_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\Torgy"
+!define TRUCALENZER_LEGACY_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\Torgy"
 
 !macro NSIS_HOOK_PREINSTALL
   Push $0
   Push $1
   Push $2
   StrCpy $0 ""
-  ReadRegStr $0 HKLM "${TORGY_LEGACY_KEY}" "InstallLocation"
+  ReadRegStr $0 HKLM "${TRUCALENZER_LEGACY_KEY}" "InstallLocation"
   ${If} $0 == ""
     ; Fall back to the uninstaller path: "C:\Program Files\Torgy\uninstall.exe"
-    ReadRegStr $1 HKLM "${TORGY_LEGACY_KEY}" "UninstallString"
+    ReadRegStr $1 HKLM "${TRUCALENZER_LEGACY_KEY}" "UninstallString"
     ${If} $1 != ""
       ${WordReplace} "$1" '"' '' "+" $1
       ${GetParent} "$1" $0
@@ -51,7 +51,7 @@
     ExecShellWait "runas" "$SYSDIR\cmd.exe" '/D /C ""$PLUGINSDIR\torgy-legacy-migrate.cmd""' SW_HIDE
 
     ClearErrors
-    ReadRegStr $1 HKLM "${TORGY_LEGACY_KEY}" "DisplayName"
+    ReadRegStr $1 HKLM "${TRUCALENZER_LEGACY_KEY}" "DisplayName"
     ${IfNot} ${Errors}
       MessageBox MB_ICONEXCLAMATION|MB_OK "The previous all-users copy of Torgy could not be removed (the administrator prompt may have been declined).$\r$\n$\r$\nPlease uninstall 'Torgy' from Settings > Apps, then open Torgy again. Until then Windows may keep starting the old version."
     ${EndIf}

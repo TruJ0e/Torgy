@@ -48,7 +48,11 @@ fn migrate_legacy_torgy_files(new_dir: &PathBuf) {
         return;
     }
     // Copy state file and token files if they exist.
-    for name in [LEGACY_TORGY_STATE, "canvas-token.dpapi", "outlook-token.dpapi"] {
+    for name in [
+        LEGACY_TORGY_STATE,
+        "canvas-token.dpapi",
+        "outlook-token.dpapi",
+    ] {
         let src = legacy_dir.join(name);
         if !src.exists() {
             continue;
@@ -145,19 +149,43 @@ fn encrypt_with_key(bytes: &[u8], key: &[u8; 32]) -> Result<Vec<u8>, String> {
 
 fn decrypt_with_key(bytes: &[u8], key: &[u8; 32]) -> Result<Vec<u8>, String> {
     // Try current framing first, then legacy Torgy framing (pre-rename migration).
-    if bytes.len() > SECURE_FRAME_MAGIC.len() && &bytes[..SECURE_FRAME_MAGIC.len()] == SECURE_FRAME_MAGIC {
-        return decrypt_framed(bytes, key, SECURE_FRAME_MAGIC, SECURE_FRAME_AAD, "TruCalenZer");
+    if bytes.len() > SECURE_FRAME_MAGIC.len()
+        && &bytes[..SECURE_FRAME_MAGIC.len()] == SECURE_FRAME_MAGIC
+    {
+        return decrypt_framed(
+            bytes,
+            key,
+            SECURE_FRAME_MAGIC,
+            SECURE_FRAME_AAD,
+            "TruCalenZer",
+        );
     }
-    if bytes.len() > LEGACY_TORGY_MAGIC.len() && &bytes[..LEGACY_TORGY_MAGIC.len()] == LEGACY_TORGY_MAGIC {
-        return decrypt_framed(bytes, key, LEGACY_TORGY_MAGIC, LEGACY_TORGY_AAD, "Torgy (legacy)");
+    if bytes.len() > LEGACY_TORGY_MAGIC.len()
+        && &bytes[..LEGACY_TORGY_MAGIC.len()] == LEGACY_TORGY_MAGIC
+    {
+        return decrypt_framed(
+            bytes,
+            key,
+            LEGACY_TORGY_MAGIC,
+            LEGACY_TORGY_AAD,
+            "Torgy (legacy)",
+        );
     }
     Err("TruCalenZer local data has an unknown or damaged encryption format.".into())
 }
 
-fn decrypt_framed(bytes: &[u8], key: &[u8; 32], magic: &[u8], aad: &[u8], label: &str) -> Result<Vec<u8>, String> {
+fn decrypt_framed(
+    bytes: &[u8],
+    key: &[u8; 32],
+    magic: &[u8],
+    aad: &[u8],
+    label: &str,
+) -> Result<Vec<u8>, String> {
     let header = magic.len() + 12;
     if bytes.len() <= header {
-        return Err(format!("{label} local data has an unknown or damaged encryption format."));
+        return Err(format!(
+            "{label} local data has an unknown or damaged encryption format."
+        ));
     }
     let nonce = &bytes[magic.len()..header];
     let ciphertext = &bytes[header..];
@@ -166,7 +194,10 @@ fn decrypt_framed(bytes: &[u8], key: &[u8; 32], magic: &[u8], aad: &[u8], label:
     cipher
         .decrypt(
             Nonce::from_slice(nonce),
-            Payload { msg: ciphertext, aad },
+            Payload {
+                msg: ciphertext,
+                aad,
+            },
         )
         .map_err(|_| format!("{label} local data failed authenticated decryption."))
 }
@@ -209,8 +240,8 @@ pub fn load_private_file(app: &AppHandle, name: &str) -> Result<Option<Vec<u8>>,
     if !path.exists() {
         return Ok(None);
     }
-    let bytes =
-        fs::read(&path).map_err(|e| format!("Could not read private TruCalenZer file {name}: {e}"))?;
+    let bytes = fs::read(&path)
+        .map_err(|e| format!("Could not read private TruCalenZer file {name}: {e}"))?;
     Ok(Some(protect::unprotect_user(&bytes)?))
 }
 
@@ -225,7 +256,8 @@ pub fn delete_private_file(app: &AppHandle, name: &str) -> Result<(), String> {
 
 pub fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| format!("Could not create TruCalenZer directory: {e}"))?;
+        fs::create_dir_all(parent)
+            .map_err(|e| format!("Could not create TruCalenZer directory: {e}"))?;
     }
     let mut temp = path.to_path_buf();
     let extension = path.extension().and_then(|x| x.to_str()).unwrap_or("data");
@@ -240,7 +272,8 @@ pub fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
     }
     #[cfg(target_os = "windows")]
     if path.exists() {
-        fs::remove_file(path).map_err(|e| format!("Could not replace previous TruCalenZer file: {e}"))?;
+        fs::remove_file(path)
+            .map_err(|e| format!("Could not replace previous TruCalenZer file: {e}"))?;
     }
     fs::rename(&temp, path).map_err(|e| format!("Could not commit TruCalenZer file: {e}"))?;
     Ok(())
