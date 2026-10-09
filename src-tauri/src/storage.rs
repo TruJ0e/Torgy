@@ -13,7 +13,7 @@ use tauri::{AppHandle, Manager};
 const WINDOWS_SNAPSHOT_FILE: &str = "trucalenzer-state.dpapi";
 const APPLE_SNAPSHOT_FILE: &str = "trucalenzer-state.secure";
 const DEV_SNAPSHOT_FILE: &str = "trucalenzer-state.dev.json";
-const SECURE_FRAME_MAGIC: &[u8; 8] = b"TRUCALK01";
+const SECURE_FRAME_MAGIC: &[u8; 9] = b"TRUCALK01";
 const SECURE_FRAME_AAD: &[u8] = b"trucalenzer-local-storage-v1";
 // Legacy Torgy framing (pre-rename) for one-time data migration.
 const LEGACY_TORGY_MAGIC: &[u8; 8] = b"TORGYK01";

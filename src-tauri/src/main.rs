@@ -1,3 +1,3 @@
 fn main() {
-    torgy_lib::run();
+    trucalenzer_lib::run();
 }
