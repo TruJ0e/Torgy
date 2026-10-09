@@ -1,22 +1,22 @@
 [package]
-name = "torgy"
-version = "0.4.6-beta"
+name = "trucalenzer"
+version = "0.5.0-beta"
 description = "Local-first academic coordination desktop application"
-authors = ["Torgy"]
+authors = ["TruCalenZer"]
 edition = "2021"
 rust-version = "1.77.2"
 
 [lib]
-name = "torgy_lib"
+name = "trucalenzer_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [[bin]]
-name = "torgy"
+name = "trucalenzer"
 path = "src/main.rs"
 
 [[bin]]
-name = "torgy-machine-agent"
-path = "src/bin/torgy-machine-agent.rs"
+name = "trucalenzer-machine-agent"
+path = "src/bin/trucalenzer-machine-agent.rs"
 
 [build-dependencies]
 tauri-build = { version = "2.6.1", features = [] }

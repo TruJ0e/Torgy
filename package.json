@@ -1,7 +1,7 @@
 {
-  "name": "torgy-local",
+  "name": "trucalenzer-local",
   "private": true,
-  "version": "0.4.6-beta",
+  "version": "0.5.0-beta",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,7 +11,7 @@
     "test:watch": "vitest",
     "tauri": "tauri",
     "desktop:dev": "tauri dev",
-    "desktop:build": "tauri build --bundles nsis && cargo build --manifest-path src-tauri/Cargo.toml --release --bin torgy-machine-agent && node scripts/build-machine-agent-installer.mjs",
+    "desktop:build": "tauri build --bundles nsis && cargo build --manifest-path src-tauri/Cargo.toml --release --bin trucalenzer-machine-agent && node scripts/build-machine-agent-installer.mjs",
     "machine-agent:bundle": "node scripts/build-machine-agent-installer.mjs",
     "copilot:poc": "tsx scripts/copilot-poc.ts",
     "core:check": "tsc -p tsconfig.core.json",

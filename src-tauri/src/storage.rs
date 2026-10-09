@@ -10,20 +10,60 @@ use rand::{rngs::OsRng, TryRngCore};
 use serde_json::Value;
 use tauri::{AppHandle, Manager};
 
-const WINDOWS_SNAPSHOT_FILE: &str = "torgy-state.dpapi";
-const APPLE_SNAPSHOT_FILE: &str = "torgy-state.secure";
-const DEV_SNAPSHOT_FILE: &str = "torgy-state.dev.json";
-const SECURE_FRAME_MAGIC: &[u8; 8] = b"TORGYK01";
-const SECURE_FRAME_AAD: &[u8] = b"torgy-local-storage-v1";
+const WINDOWS_SNAPSHOT_FILE: &str = "trucalenzer-state.dpapi";
+const APPLE_SNAPSHOT_FILE: &str = "trucalenzer-state.secure";
+const DEV_SNAPSHOT_FILE: &str = "trucalenzer-state.dev.json";
+const SECURE_FRAME_MAGIC: &[u8; 8] = b"TRUCALK01";
+const SECURE_FRAME_AAD: &[u8] = b"trucalenzer-local-storage-v1";
+// Legacy Torgy framing (pre-rename) for one-time data migration.
+const LEGACY_TORGY_MAGIC: &[u8; 8] = b"TORGYK01";
+const LEGACY_TORGY_AAD: &[u8] = b"torgy-local-storage-v1";
+const LEGACY_TORGY_DIR: &str = "com.trujoe.torgy";
+const LEGACY_TORGY_STATE: &str = "torgy-state.dpapi";
 
 pub fn app_data_dir(app: &AppHandle) -> Result<PathBuf, String> {
     let dir = app
         .path()
         .app_data_dir()
-        .map_err(|e| format!("Could not resolve Torgy app-data directory: {e}"))?;
+        .map_err(|e| format!("Could not resolve TruCalenZer app-data directory: {e}"))?;
     fs::create_dir_all(&dir)
-        .map_err(|e| format!("Could not create Torgy app-data directory: {e}"))?;
+        .map_err(|e| format!("Could not create TruCalenZer app-data directory: {e}"))?;
+    // One-time migration from legacy Torgy data (pre-rename). Copies raw files;
+    // decryption handles both old and new framing transparently.
+    migrate_legacy_torgy_files(&dir);
     Ok(dir)
+}
+
+/// Copy legacy Torgy data files to the new location on first run. Idempotent.
+fn migrate_legacy_torgy_files(new_dir: &PathBuf) {
+    let new_state = new_dir.join(snapshot_file_name());
+    if new_state.exists() {
+        return;
+    }
+    let legacy_dir: PathBuf = match std::env::var("APPDATA") {
+        Ok(appdata) => PathBuf::from(appdata).join(LEGACY_TORGY_DIR),
+        Err(_) => return,
+    };
+    if !legacy_dir.exists() {
+        return;
+    }
+    // Copy state file and token files if they exist.
+    for name in [LEGACY_TORGY_STATE, "canvas-token.dpapi", "outlook-token.dpapi"] {
+        let src = legacy_dir.join(name);
+        if !src.exists() {
+            continue;
+        }
+        // Map legacy names to new names.
+        let dest_name = if name == LEGACY_TORGY_STATE {
+            snapshot_file_name().to_string()
+        } else {
+            name.to_string()
+        };
+        let dest = new_dir.join(dest_name);
+        if !dest.exists() {
+            let _ = fs::copy(&src, &dest);
+        }
+    }
 }
 
 pub fn storage_description() -> &'static str {
@@ -84,7 +124,7 @@ fn private_file_name(name: &str) -> String {
 
 fn encrypt_with_key(bytes: &[u8], key: &[u8; 32]) -> Result<Vec<u8>, String> {
     let cipher = ChaCha20Poly1305::new_from_slice(key)
-        .map_err(|_| "Could not initialize Torgy local encryption.".to_string())?;
+        .map_err(|_| "Could not initialize TruCalenZer local encryption.".to_string())?;
     let mut nonce = [0u8; 12];
     OsRng.try_fill_bytes(&mut nonce).expect("os rng");
     let ciphertext = cipher
@@ -95,7 +135,7 @@ fn encrypt_with_key(bytes: &[u8], key: &[u8; 32]) -> Result<Vec<u8>, String> {
                 aad: SECURE_FRAME_AAD,
             },
         )
-        .map_err(|_| "Could not encrypt Torgy local data.".to_string())?;
+        .map_err(|_| "Could not encrypt TruCalenZer local data.".to_string())?;
     let mut framed = Vec::with_capacity(SECURE_FRAME_MAGIC.len() + nonce.len() + ciphertext.len());
     framed.extend_from_slice(SECURE_FRAME_MAGIC);
     framed.extend_from_slice(&nonce);
@@ -104,23 +144,31 @@ fn encrypt_with_key(bytes: &[u8], key: &[u8; 32]) -> Result<Vec<u8>, String> {
 }
 
 fn decrypt_with_key(bytes: &[u8], key: &[u8; 32]) -> Result<Vec<u8>, String> {
-    let header = SECURE_FRAME_MAGIC.len() + 12;
-    if bytes.len() <= header || &bytes[..SECURE_FRAME_MAGIC.len()] != SECURE_FRAME_MAGIC {
-        return Err("Torgy local data has an unknown or damaged encryption format.".into());
+    // Try current framing first, then legacy Torgy framing (pre-rename migration).
+    if bytes.len() > SECURE_FRAME_MAGIC.len() && &bytes[..SECURE_FRAME_MAGIC.len()] == SECURE_FRAME_MAGIC {
+        return decrypt_framed(bytes, key, SECURE_FRAME_MAGIC, SECURE_FRAME_AAD, "TruCalenZer");
     }
-    let nonce = &bytes[SECURE_FRAME_MAGIC.len()..header];
+    if bytes.len() > LEGACY_TORGY_MAGIC.len() && &bytes[..LEGACY_TORGY_MAGIC.len()] == LEGACY_TORGY_MAGIC {
+        return decrypt_framed(bytes, key, LEGACY_TORGY_MAGIC, LEGACY_TORGY_AAD, "Torgy (legacy)");
+    }
+    Err("TruCalenZer local data has an unknown or damaged encryption format.".into())
+}
+
+fn decrypt_framed(bytes: &[u8], key: &[u8; 32], magic: &[u8], aad: &[u8], label: &str) -> Result<Vec<u8>, String> {
+    let header = magic.len() + 12;
+    if bytes.len() <= header {
+        return Err(format!("{label} local data has an unknown or damaged encryption format."));
+    }
+    let nonce = &bytes[magic.len()..header];
     let ciphertext = &bytes[header..];
     let cipher = ChaCha20Poly1305::new_from_slice(key)
-        .map_err(|_| "Could not initialize Torgy local decryption.".to_string())?;
+        .map_err(|_| format!("Could not initialize {label} local decryption."))?;
     cipher
         .decrypt(
             Nonce::from_slice(nonce),
-            Payload {
-                msg: ciphertext,
-                aad: SECURE_FRAME_AAD,
-            },
+            Payload { msg: ciphertext, aad },
         )
-        .map_err(|_| "Torgy local data failed authenticated decryption.".to_string())
+        .map_err(|_| format!("{label} local data failed authenticated decryption."))
 }
 
 pub fn data_dir_string(app: &AppHandle) -> Result<String, String> {
@@ -133,17 +181,17 @@ pub fn load_snapshot(app: &AppHandle) -> Result<Option<Value>, String> {
         return Ok(None);
     }
     let encrypted =
-        fs::read(&path).map_err(|e| format!("Could not read encrypted Torgy state: {e}"))?;
+        fs::read(&path).map_err(|e| format!("Could not read encrypted TruCalenZer state: {e}"))?;
     let plaintext = protect::unprotect_user(&encrypted)?;
     let value = serde_json::from_slice(&plaintext)
-        .map_err(|e| format!("Encrypted Torgy state was not valid JSON: {e}"))?;
+        .map_err(|e| format!("Encrypted TruCalenZer state was not valid JSON: {e}"))?;
     Ok(Some(value))
 }
 
 pub fn save_snapshot(app: &AppHandle, snapshot: &Value) -> Result<(), String> {
     let path = app_data_dir(app)?.join(snapshot_file_name());
     let serialized = serde_json::to_vec(snapshot)
-        .map_err(|e| format!("Could not serialize Torgy state: {e}"))?;
+        .map_err(|e| format!("Could not serialize TruCalenZer state: {e}"))?;
     atomic_write(&path, &protect::protect_user(&serialized)?)
 }
 
@@ -162,7 +210,7 @@ pub fn load_private_file(app: &AppHandle, name: &str) -> Result<Option<Vec<u8>>,
         return Ok(None);
     }
     let bytes =
-        fs::read(&path).map_err(|e| format!("Could not read private Torgy file {name}: {e}"))?;
+        fs::read(&path).map_err(|e| format!("Could not read private TruCalenZer file {name}: {e}"))?;
     Ok(Some(protect::unprotect_user(&bytes)?))
 }
 
@@ -170,31 +218,31 @@ pub fn delete_private_file(app: &AppHandle, name: &str) -> Result<(), String> {
     let path = app_data_dir(app)?.join(private_file_name(name));
     if path.exists() {
         fs::remove_file(path)
-            .map_err(|e| format!("Could not remove private Torgy file {name}: {e}"))?;
+            .map_err(|e| format!("Could not remove private TruCalenZer file {name}: {e}"))?;
     }
     Ok(())
 }
 
 pub fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| format!("Could not create Torgy directory: {e}"))?;
+        fs::create_dir_all(parent).map_err(|e| format!("Could not create TruCalenZer directory: {e}"))?;
     }
     let mut temp = path.to_path_buf();
     let extension = path.extension().and_then(|x| x.to_str()).unwrap_or("data");
     temp.set_extension(format!("{extension}.tmp"));
     {
         let mut file = fs::File::create(&temp)
-            .map_err(|e| format!("Could not create temporary Torgy file: {e}"))?;
+            .map_err(|e| format!("Could not create temporary TruCalenZer file: {e}"))?;
         file.write_all(bytes)
-            .map_err(|e| format!("Could not write temporary Torgy file: {e}"))?;
+            .map_err(|e| format!("Could not write temporary TruCalenZer file: {e}"))?;
         file.sync_all()
-            .map_err(|e| format!("Could not flush temporary Torgy file: {e}"))?;
+            .map_err(|e| format!("Could not flush temporary TruCalenZer file: {e}"))?;
     }
     #[cfg(target_os = "windows")]
     if path.exists() {
-        fs::remove_file(path).map_err(|e| format!("Could not replace previous Torgy file: {e}"))?;
+        fs::remove_file(path).map_err(|e| format!("Could not replace previous TruCalenZer file: {e}"))?;
     }
-    fs::rename(&temp, path).map_err(|e| format!("Could not commit Torgy file: {e}"))?;
+    fs::rename(&temp, path).map_err(|e| format!("Could not commit TruCalenZer file: {e}"))?;
     Ok(())
 }
 
@@ -234,7 +282,7 @@ pub mod protect {
     fn protect(plaintext: &[u8], flags: u32) -> Result<Vec<u8>, String> {
         let mut input = CRYPT_INTEGER_BLOB {
             cbData: u32::try_from(plaintext.len())
-                .map_err(|_| "Torgy data is too large for DPAPI".to_string())?,
+                .map_err(|_| "TruCalenZer data is too large for DPAPI".to_string())?,
             pbData: plaintext.as_ptr().cast_mut(),
         };
         let mut out = OutBlob::default();
@@ -262,7 +310,7 @@ pub mod protect {
     fn unprotect(ciphertext: &[u8]) -> Result<Vec<u8>, String> {
         let mut input = CRYPT_INTEGER_BLOB {
             cbData: u32::try_from(ciphertext.len())
-                .map_err(|_| "Encrypted Torgy data is too large for DPAPI".to_string())?,
+                .map_err(|_| "Encrypted TruCalenZer data is too large for DPAPI".to_string())?,
             pbData: ciphertext.as_ptr().cast_mut(),
         };
         let mut out = OutBlob::default();
@@ -308,7 +356,7 @@ pub mod protect {
 
     use super::{decrypt_with_key, encrypt_with_key};
 
-    const SERVICE: &str = "com.trujoe.torgy";
+    const SERVICE: &str = "com.trujoe.trucalenzer";
     const ACCOUNT: &str = "local-storage-master-key-v1";
     const ERR_SEC_ITEM_NOT_FOUND: i32 = -25300;
 
@@ -316,17 +364,17 @@ pub mod protect {
         match get_generic_password(SERVICE, ACCOUNT) {
             Ok(bytes) => bytes
                 .try_into()
-                .map_err(|_| "Torgy Keychain master key has the wrong length.".to_string()),
+                .map_err(|_| "TruCalenZer Keychain master key has the wrong length.".to_string()),
             Err(error) if error.code() == ERR_SEC_ITEM_NOT_FOUND => {
                 let mut key = [0u8; 32];
                 OsRng.try_fill_bytes(&mut key).expect("os rng");
                 set_generic_password(SERVICE, ACCOUNT, &key).map_err(|e| {
-                    format!("Could not store Torgy master key in Apple Keychain: {e}")
+                    format!("Could not store TruCalenZer master key in Apple Keychain: {e}")
                 })?;
                 Ok(key)
             }
             Err(error) => Err(format!(
-                "Could not read Torgy master key from Apple Keychain: {error}"
+                "Could not read TruCalenZer master key from Apple Keychain: {error}"
             )),
         }
     }
@@ -338,10 +386,10 @@ pub mod protect {
         decrypt_with_key(bytes, &master_key()?)
     }
     pub fn protect_machine(_bytes: &[u8]) -> Result<Vec<u8>, String> {
-        Err("Machine-wide secret storage is Windows-only in Torgy.".into())
+        Err("Machine-wide secret storage is Windows-only in TruCalenZer.".into())
     }
     pub fn unprotect_machine(_bytes: &[u8]) -> Result<Vec<u8>, String> {
-        Err("Machine-wide secret storage is Windows-only in Torgy.".into())
+        Err("Machine-wide secret storage is Windows-only in TruCalenZer.".into())
     }
 }
 
@@ -364,10 +412,10 @@ pub mod protect {
         Err("Secure local storage is not implemented for this release platform.".into())
     }
     pub fn protect_machine(_bytes: &[u8]) -> Result<Vec<u8>, String> {
-        Err("Machine-wide secret storage is Windows-only in Torgy.".into())
+        Err("Machine-wide secret storage is Windows-only in TruCalenZer.".into())
     }
     pub fn unprotect_machine(_bytes: &[u8]) -> Result<Vec<u8>, String> {
-        Err("Machine-wide secret storage is Windows-only in Torgy.".into())
+        Err("Machine-wide secret storage is Windows-only in TruCalenZer.".into())
     }
 }
 
