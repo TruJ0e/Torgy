@@ -3759,9 +3759,9 @@ checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
 name = "tauri"
-version = "2.11.5"
+version = "2.11.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "667b20e2726d572dea2de7370da16e188eb06008faf9a92fab7cdc46791190b5"
+checksum = "6fa5bacdb9bbad5954af3d1bd6cf6ae9192cab1b2e270f4a07f904610b9e85f4"
 dependencies = [
  "anyhow",
  "bytes",
@@ -4294,33 +4294,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d56353a2a665ad0f41a421187180aab746c8c325620617ad883a99a1cbe66d2"
 
 [[package]]
-name = "torgy"
-version = "0.4.5-beta"
-dependencies = [
- "base64 0.23.1",
- "chacha20poly1305",
- "chrono",
- "hex",
- "ico",
- "rand",
- "regex",
- "reqwest 0.12.28",
- "security-framework",
- "serde",
- "serde_json",
- "sha2 0.11.0",
- "tauri",
- "tauri-build",
- "tauri-plugin-updater",
- "url",
- "urlencoding",
- "uuid",
- "webbrowser",
- "windows-sys 0.61.2",
- "x25519-dalek",
-]
-
-[[package]]
 name = "tower"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4404,6 +4377,33 @@ dependencies = [
  "serde",
  "thiserror 2.0.20",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "trucalenzer"
+version = "0.5.0-beta"
+dependencies = [
+ "base64 0.23.1",
+ "chacha20poly1305",
+ "chrono",
+ "hex",
+ "ico",
+ "rand",
+ "regex",
+ "reqwest 0.12.28",
+ "security-framework",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-updater",
+ "url",
+ "urlencoding",
+ "uuid",
+ "webbrowser",
+ "windows-sys 0.61.2",
+ "x25519-dalek",
 ]
 
 [[package]]
