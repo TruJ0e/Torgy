@@ -9,7 +9,7 @@ const target = targetIndex >= 0 ? process.argv[targetIndex + 1] : '';
 if (targetIndex >= 0 && !target) throw new Error('--target requires a Rust target triple.');
 
 const releaseDir = path.resolve(root, 'src-tauri', 'target', ...(target ? [target] : []), 'release');
-const agentExe = path.join(releaseDir, 'torgy-machine-agent.exe');
+const agentExe = path.join(releaseDir, 'trucalenzer-machine-agent.exe');
 if (!fs.existsSync(agentExe)) throw new Error(`Machine-agent binary not found: ${agentExe}`);
 
 const outDir = path.join(releaseDir, 'bundle', 'nsis');
@@ -40,9 +40,9 @@ for (const command of candidates) {
   if (result.error?.code === 'ENOENT') { lastError = result.error; continue; }
   if (result.error) throw result.error;
   if (result.status !== 0) process.exit(result.status ?? 1);
-  const output = path.join(outDir, `Torgy_Machine_Agent_${pkg.version}_x64-setup.exe`);
+  const output = path.join(outDir, `TruCalenZer_Machine_Agent_${pkg.version}_x64-setup.exe`);
   if (!fs.existsSync(output)) throw new Error(`NSIS completed but the machine-agent installer was not found: ${output}`);
-  console.log(`Built Torgy Machine Agent installer: ${output}`);
+  console.log(`Built TruCalenZer Machine Agent installer: ${output}`);
   process.exit(0);
 }
 throw lastError ?? new Error('makensis was not found in PATH.');

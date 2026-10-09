@@ -61,7 +61,7 @@ jobs:
         with:
           name: torgy-windows-update
           path: |
-            src-tauri/target/release/torgy.exe
+            src-tauri/target/release/trucalenzer.exe
             src-tauri/target/release/bundle/nsis/*-setup.exe
           if-no-files-found: error
           retention-days: 14
