@@ -19,7 +19,7 @@ use x25519_dalek::{PublicKey, StaticSecret};
 use crate::storage;
 
 const IDENTITY_FILE: &str = "sync-identity.dpapi";
-const AGENT_TASK_NAME: &str = "Torgy Sync Agent";
+const AGENT_TASK_NAME: &str = "TruCalenZer Sync Agent";
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -209,7 +209,7 @@ fn shared_key(
     let peer = PublicKey::from(peer_bytes);
     let shared = secret.diffie_hellman(&peer);
     let mut hasher = Sha256::new();
-    hasher.update(b"torgy-sync-v1\0");
+    hasher.update(b"trucalenzer-sync-v1\0");
     hasher.update(shared.as_bytes());
     hasher.update(mailbox_id.as_bytes());
     Ok(hasher.finalize().into())
@@ -255,7 +255,7 @@ pub fn open_packet(
     mailbox_id: &str,
 ) -> Result<Value, String> {
     let decoded: SecurePacket = serde_json::from_str(packet)
-        .map_err(|_| "Synchronization packet was not valid Torgy JSON.".to_string())?;
+        .map_err(|_| "Synchronization packet was not valid TruCalenZer JSON.".to_string())?;
     if decoded.version != 1 || decoded.mailbox_id != mailbox_id {
         return Err("Synchronization packet mailbox/version mismatch.".into());
     }
@@ -307,7 +307,7 @@ fn normalize_pair_code(code: &str) -> String {
 fn code_hash(code: &str) -> String {
     let clean = normalize_pair_code(code);
     let mut hasher = Sha256::new();
-    hasher.update(b"torgy-pair-v1\0");
+    hasher.update(b"trucalenzer-pair-v1\0");
     hasher.update(clean.as_bytes());
     hex::encode(hasher.finalize())
 }
@@ -369,7 +369,7 @@ fn program_data() -> PathBuf {
     std::env::var_os("PROGRAMDATA")
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from(r"C:\ProgramData"))
-        .join("Torgy")
+        .join("TruCalenZer")
 }
 fn spool_root() -> PathBuf {
     program_data().join("spool")
@@ -388,7 +388,7 @@ fn ensure_spool() -> Result<PathBuf, String> {
         "processed",
     ] {
         fs::create_dir_all(root.join(part))
-            .map_err(|e| format!("Could not create local Torgy sync spool: {e}"))?;
+            .map_err(|e| format!("Could not create local TruCalenZer sync spool: {e}"))?;
     }
     Ok(root)
 }
@@ -510,7 +510,7 @@ pub fn drive_send(
             .join("mailboxes")
             .join(mailbox_id)
             .join(direction)
-            .join(format!("{envelope_id}.torgy")),
+            .join(format!("{envelope_id}.trucalenzer")),
         packet.as_bytes(),
     )
 }
@@ -530,7 +530,7 @@ pub fn drive_receive(
         .map_err(|e| format!("Could not read sync mailbox: {e}"))?
         .flatten()
     {
-        if entry.path().extension().and_then(|x| x.to_str()) != Some("torgy") {
+        if entry.path().extension().and_then(|x| x.to_str()) != Some("trucalenzer") {
             continue;
         }
         let Some(name) = entry.file_name().to_str().map(str::to_string) else {
@@ -557,13 +557,13 @@ pub fn test_share(share_root: &str) -> Result<String, String> {
         .map_err(|e| format!("Could not create synchronization health directory: {e}"))?;
     let file_name = format!("probe-{}.tmp", uuid::Uuid::new_v4());
     let path = probe_dir.join(file_name);
-    storage::atomic_write(&path, b"torgy-read-write-probe")
+    storage::atomic_write(&path, b"trucalenzer-read-write-probe")
         .map_err(|e| format!("University synchronization drive is not writable: {e}"))?;
     let bytes = fs::read(&path).map_err(|e| {
         format!("University synchronization drive is not readable after write: {e}")
     })?;
     let _ = fs::remove_file(&path);
-    if bytes != b"torgy-read-write-probe" {
+    if bytes != b"trucalenzer-read-write-probe" {
         return Err(
             "University synchronization drive read/write verification returned unexpected data."
                 .into(),
@@ -636,7 +636,7 @@ pub fn spool_ack(file_name: &str) -> Result<(), String> {
     if incoming.exists() {
         fs::remove_file(&incoming).map_err(|e| e.to_string())?;
     }
-    let envelope_id = file_name.strip_suffix(".torgy").unwrap_or(file_name);
+    let envelope_id = file_name.strip_suffix(".trucalenzer").unwrap_or(file_name);
     validate_id(envelope_id)?;
     storage::atomic_write(
         &root.join("acks").join(format!("{envelope_id}.ack")),
@@ -695,10 +695,10 @@ fn machine_agent_executable() -> Result<PathBuf, String> {
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from(r"C:\Program Files"));
     let path = base
-        .join("Torgy Machine Agent")
-        .join("torgy-machine-agent.exe");
+        .join("TruCalenZer Machine Agent")
+        .join("trucalenzer-machine-agent.exe");
     if !path.is_file() {
-        return Err("Torgy Machine Agent is not installed. University-managed synchronization requires the one-time machine-agent package.".into());
+        return Err("TruCalenZer Machine Agent is not installed. University-managed synchronization requires the one-time machine-agent package.".into());
     }
     Ok(path)
 }
@@ -743,7 +743,7 @@ pub fn legacy_per_machine_install() -> bool {
         .or_else(|| std::env::var_os("ProgramFiles"))
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from(r"C:\Program Files"));
-    base.join("Torgy").join("uninstall.exe").is_file()
+    base.join("TruCalenZer").join("uninstall.exe").is_file()
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -789,9 +789,9 @@ pub fn agent_status() -> AgentStatus {
         paired_mailbox_id: status.as_ref().and_then(|s| s.paired_mailbox_id.clone()),
         message: status.map(|s| s.message).unwrap_or_else(|| {
             if !installed && configured {
-                "Managed sync configuration exists, but the protected Torgy Machine Agent is not installed. Install the one-time administrator package to migrate managed sync.".into()
+                "Managed sync configuration exists, but the protected TruCalenZer Machine Agent is not installed. Install the one-time administrator package to migrate managed sync.".into()
             } else if !installed {
-                "Managed sync requires the one-time Torgy Machine Agent administrator package.".into()
+                "Managed sync requires the one-time TruCalenZer Machine Agent administrator package.".into()
             } else if configured {
                 "Managed sync is configured but has not reported recently.".into()
             } else {
@@ -949,7 +949,7 @@ fn process_agent_transport(config: &AgentConfig) -> Result<(usize, usize, usize)
         .join(mailbox)
         .join("coordinator-to-student");
     for entry in fs::read_dir(remote).map_err(|e| e.to_string())?.flatten() {
-        if entry.path().extension().and_then(|x| x.to_str()) != Some("torgy") {
+        if entry.path().extension().and_then(|x| x.to_str()) != Some("trucalenzer") {
             continue;
         }
         let local = spool.join("incoming").join(entry.file_name());
@@ -979,7 +979,7 @@ fn process_agent_transport(config: &AgentConfig) -> Result<(usize, usize, usize)
             .join("mailboxes")
             .join(mailbox)
             .join("coordinator-to-student")
-            .join(format!("{stem}.torgy"));
+            .join(format!("{stem}.trucalenzer"));
         if remote_file.exists() {
             let _ = fs::remove_file(remote_file);
         }
