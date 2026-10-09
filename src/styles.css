@@ -876,3 +876,26 @@ html,body,#root{height:100%;overflow:hidden}
 }
 @media(max-width:900px){.appearance-controls{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:640px){.appearance-settings-heading{align-items:stretch;flex-direction:column}.appearance-settings-heading button{align-self:flex-start}.appearance-controls{grid-template-columns:1fr}}
+
+/* ---- Eisenhower Matrix triage ---- */
+.eisenhower-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;overflow:auto;min-height:0}
+.eisenhower-quadrant{border:1px solid var(--appearance-border,#d9d2c8);border-radius:12px;padding:10px;background:var(--appearance-surface,#fffdfa);min-width:0;transition:box-shadow .15s ease}
+.eisenhower-quadrant.q1{background:linear-gradient(180deg,rgba(196,74,58,.10),rgba(196,74,58,.03))}
+.eisenhower-quadrant.q2{background:linear-gradient(180deg,rgba(66,111,136,.10),rgba(66,111,136,.03))}
+.eisenhower-quadrant.q3{background:linear-gradient(180deg,rgba(176,141,46,.10),rgba(176,141,46,.03))}
+.eisenhower-quadrant.q4{background:var(--appearance-soft,#f4efe8)}
+.eisenhower-quadrant.drop-target{box-shadow:0 0 0 2px var(--appearance-accent,#62594f) inset}
+.eisenhower-head{display:flex;align-items:baseline;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.eisenhower-head strong{font-size:14px}
+.eisenhower-count{background:var(--appearance-accent,#62594f);color:var(--appearance-on-accent,#fff);border-radius:999px;min-width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;padding:0 6px}
+.eisenhower-head small{color:var(--appearance-muted,#746d65);font-size:11px;width:100%}
+.eisenhower-cards{display:flex;flex-direction:column;gap:8px;min-height:40px}
+.eisenhower-card{cursor:grab;border:1px solid var(--appearance-border,#d9d2c8);border-radius:10px;background:var(--appearance-surface,#fffdfa);margin:0}
+.eisenhower-card:active{cursor:grabbing}
+.eisenhower-card .suggestion-fields{flex:1;min-width:0}
+.eisenhower-grip{color:var(--appearance-muted,#9a938a);flex-shrink:0;margin-top:4px;cursor:grab}
+.eisenhower-card.skipped{opacity:.55}
+.eisenhower-card.skipped .suggestion-title-input{text-decoration:line-through}
+.eisenhower-empty{color:var(--appearance-muted,#9a938a);font-size:12px;text-align:center;padding:12px 0;margin:0;border:1px dashed var(--appearance-border,#d9d2c8);border-radius:8px}
+.suggestion-approve-actions{display:flex;gap:8px;margin-top:10px}
+@media(max-width:640px){.eisenhower-grid{grid-template-columns:1fr}}
