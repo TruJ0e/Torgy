@@ -531,14 +531,11 @@ button.compact { min-height: 36px; padding: 6px 11px; }
 .time-days small{font-size:10px;color:#7c756d}.time-days strong{font-size:17px}
 .all-day-row{border-top:1px solid #e4ded5;border-bottom:1px solid #d8d1c8;min-height:36px}
 .all-day-row>span{display:grid;place-items:center;font-size:9px;color:#8a837b;letter-spacing:.05em}
-.all-day-days>div{border-right:1px solid #e4ded5;padding:4px;min-width:0;box-sizing:border-box}
-.all-day-days>div:last-child{border-right:none}
-.all-day-days{box-sizing:border-box}
-.time-days>button{box-sizing:border-box}
-.time-day-column{box-sizing:border-box}
+.all-day-days>div{border-right:1px solid #e4ded5;padding:4px;min-width:0}
+.all-day-days>div:last-child{border-right:0}
 .all-day-chip{display:block;width:100%;border:1px dashed #cfc5b9;background:#f6f0e8;border-radius:7px;padding:4px 6px;text-align:left;min-height:auto;margin-bottom:3px;overflow:hidden}
 .all-day-chip.scheduled{border-style:solid;border-left:3px solid #62594f}.all-day-chip strong,.all-day-chip small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.all-day-chip strong{font-size:10px}.all-day-chip small{font-size:9px;color:#776f67}
-.time-scroll{display:grid;grid-template-columns:76px minmax(0,1fr);height:572px;overflow-y:auto;overflow-x:auto;scrollbar-gutter:stable}
+.time-scroll{display:grid;grid-template-columns:76px minmax(0,1fr);height:572px;overflow-y:auto;overflow-x:auto}
 .time-labels{display:grid;grid-template-rows:repeat(22,26px);position:sticky;left:0;z-index:3;background:#fffdfa;border-right:1px solid #e4ded5}
 .time-labels span{font-size:9px;color:#8a837b;text-align:right;padding:3px 7px 0 0;border-bottom:1px solid #f0ebe5}
 .time-columns{min-width:max-content;width:100%}
