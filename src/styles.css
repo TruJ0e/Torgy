@@ -526,7 +526,7 @@ button.compact { min-height: 36px; padding: 6px 11px; }
 .time-head,.all-day-row{display:grid;grid-template-columns:76px minmax(0,1fr)}
 .time-head>span,.all-day-row>span{border-right:1px solid #e4ded5}
 .time-days,.all-day-days,.time-columns{display:grid;min-width:0}
-.time-days>button{border:0;border-right:1px solid #e4ded5;background:#f4efe8;min-height:40px;display:flex;align-items:center;justify-content:center;gap:5px}
+.time-days>button{border:0;border-right:1px solid #e4ded5;background:#f4efe8;min-height:40px;display:flex;align-items:center;justify-content:center;gap:5px;padding:0;margin:0;box-sizing:border-box}
 .time-days>button:last-child{border-right:0}.time-days>button.today{background:#e9e3da}
 .time-days small{font-size:10px;color:#7c756d}.time-days strong{font-size:17px}
 .all-day-row{border-top:1px solid #e4ded5;border-bottom:1px solid #d8d1c8;min-height:36px}
