@@ -43,6 +43,8 @@ jobs:
       - name: Test core logic
         run: npm test
       - name: Build Copilot sidecar CLI
+        env:
+          TRUCALENZER_SIDECAR_ONLY: "1"
         run: cargo build --manifest-path src-tauri/Cargo.toml --release --bin trucalenzer-copilot
       - name: Stage Copilot sidecar for bundling
         run: node scripts/stage-copilot-sidecar.mjs

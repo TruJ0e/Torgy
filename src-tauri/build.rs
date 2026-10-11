@@ -59,6 +59,19 @@ fn ensure_windows_icon() {
 }
 
 fn main() {
+    // Re-run the build script whenever this flips: the sidecar-only build
+    // below skips tauri_build, and the next cargo invocation (without the
+    // flag) must run the full Tauri build script again.
+    println!("cargo:rerun-if-env-changed=TRUCALENZER_SIDECAR_ONLY");
     ensure_windows_icon();
+    // Building the Copilot sidecar CLI itself: tauri_build's externalBin
+    // validation demands the staged sidecar binary
+    // (binaries/trucalenzer-copilot-<triple>), which is exactly what this
+    // build is producing -- a chicken-and-egg. The sidecar doesn't need
+    // Tauri codegen, so skip the Tauri build script for this one build.
+    // Set by the installer workflows' "Build Copilot sidecar CLI" step.
+    if std::env::var("TRUCALENZER_SIDECAR_ONLY").is_ok() {
+        return;
+    }
     tauri_build::build()
 }
