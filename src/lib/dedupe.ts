@@ -133,7 +133,7 @@ export function findPossibleDuplicate(candidate: Task, existing: Task[]) {
   return existing
     .filter((task) => !task.deletedAt)
     .map((task) => ({ task, evidence: duplicateEvidence(candidate, task) }))
-    .filter((x) => x.evidence.score >= 0.72)
+    .filter((x) => x.evidence.score >= 0.55)
     .sort((a, b) => b.evidence.score - a.evidence.score)[0] ?? null;
 }
 
