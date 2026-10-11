@@ -17,10 +17,39 @@ export interface InfoDumpService {
 }
 
 /**
- * Development-only deterministic fallback. It does not pretend to be AI.
+ * Development-only deterministic fallback. It does not pretend to be AI:
+ * it splits the dump into fragments and applies lightweight keyword-based
+ * urgency/importance hints so the triage panel sorts sensibly even before
+ * the approved organizer is enabled. Dates it derives stay "possible".
  * The production desktop build replaces this behind the same interface with the
  * university-approved Copilot bridge after its WebView/browser DOM is validated.
  */
+
+const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+function isoDay(offset: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** Best-effort date hint from plain words. Returns an ISO day or null. */
+function guessPossibleDate(text: string): string | null {
+  const t = ` ${text.toLowerCase()} `;
+  if (/\b(today|tonight)\b/.test(t)) return isoDay(0);
+  if (/\btomorrow\b/.test(t)) return isoDay(1);
+  for (let i = 0; i < WEEKDAYS.length; i++) {
+    if (t.includes(` ${WEEKDAYS[i]} `) || t.includes(`by ${WEEKDAYS[i]} `) || t.includes(`on ${WEEKDAYS[i]} `)) {
+      const delta = (i - new Date().getDay() + 7) % 7;
+      return isoDay(delta);
+    }
+  }
+  return null;
+}
+
+const IMPORTANT_RE = /\b(urgent|asap|critical|important|must|crucial|deadline|exam|test|quiz|report|appointment|dentist|doctor|interview)\b/i;
+const TRIVIAL_RE = /\b(someday|eventually|sometime|maybe one day|if i get around)\b/i;
+
 export class DevelopmentInfoDumpService implements InfoDumpService {
   async organize(rawText: string, context?: InfoDumpContext): Promise<InfoDumpResult> {
     const cleaned = rawText.trim().replace(/\s+/g, ' ');
@@ -33,18 +62,22 @@ export class DevelopmentInfoDumpService implements InfoDumpService {
     return {
       provider: 'development-fallback',
       rawText,
-      items: fragments.map((fragment) => ({
-        title: fragment.charAt(0).toUpperCase() + fragment.slice(1),
-        studentId: context?.studentId ?? null,
-        course: null,
-        dueDate: null,
-        possibleDate: null,
-        time: null,
-        durationMinutes: null,
-        priority: 'normal',
-        notes: 'Development fallback only. Review before adding.',
-        uncertain: true,
-      })),
+      items: fragments.map((fragment) => {
+        const possibleDate = guessPossibleDate(fragment);
+        const priority = TRIVIAL_RE.test(fragment) ? 'low' : IMPORTANT_RE.test(fragment) || possibleDate ? 'high' : 'normal';
+        return {
+          title: fragment.charAt(0).toUpperCase() + fragment.slice(1),
+          studentId: context?.studentId ?? null,
+          course: null,
+          dueDate: null,
+          possibleDate,
+          time: null,
+          durationMinutes: null,
+          priority,
+          notes: 'Development fallback only. Review before adding.',
+          uncertain: true,
+        };
+      }),
     };
   }
 }
