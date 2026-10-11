@@ -39,7 +39,7 @@ function guessPossibleDate(text: string): string | null {
   if (/\b(today|tonight)\b/.test(t)) return isoDay(0);
   if (/\btomorrow\b/.test(t)) return isoDay(1);
   for (let i = 0; i < WEEKDAYS.length; i++) {
-    if (t.includes(` ${WEEKDAYS[i]} `) || t.includes(`by ${WEEKDAYS[i]} `) || t.includes(`on ${WEEKDAYS[i]} `)) {
+    if (new RegExp(`\\b${WEEKDAYS[i]}\\b`).test(t)) {
       const delta = (i - new Date().getDay() + 7) % 7;
       return isoDay(delta);
     }
