@@ -18,6 +18,10 @@ path = "src/main.rs"
 name = "trucalenzer-machine-agent"
 path = "src/bin/trucalenzer-machine-agent.rs"
 
+[[bin]]
+name = "trucalenzer-copilot"
+path = "src/bin/trucalenzer-copilot.rs"
+
 [build-dependencies]
 tauri-build = { version = "2.6.1", features = [] }
 ico = "0.5"
@@ -39,6 +43,7 @@ uuid = { version = "1", features = ["v4", "serde"] }
 hex = "0.4"
 webbrowser = "1"
 urlencoding = "2"
+tungstenite = { version = "0.24", default-features = false, features = ["handshake", "rustls-tls-webpki-roots"] }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = [

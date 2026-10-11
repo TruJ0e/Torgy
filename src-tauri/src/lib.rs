@@ -1,5 +1,6 @@
 mod canvas;
 mod copilot;
+pub mod copilot_cli;
 mod outlook;
 mod platform;
 mod speech;
@@ -129,6 +130,99 @@ async fn copilot_read_latest_response(app: AppHandle) -> Result<Value, String> {
 #[tauri::command]
 fn copilot_status(app: AppHandle) -> Value {
     copilot::status(&app)
+}
+
+/// Runs the per-device `trucalenzer-copilot` sidecar CLI for one organize turn.
+/// The prompt is piped via stdin; stdout JSON is returned. Errors are prefixed:
+///   SIDECAR_MISSING — binary not found next to the app (falls back to WebView)
+///   SIDECAR_AUTH    — device needs `trucalenzer-copilot login`
+/// Reports the `trucalenzer-copilot` sidecar auth status (installed? signed in?).
+#[tauri::command]
+async fn copilot_sidecar_status() -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let exe = std::env::current_exe()
+            .map_err(|e| format!("SIDECAR_MISSING: could not locate app dir: {e}"))?;
+        let dir = exe
+            .parent()
+            .ok_or_else(|| "SIDECAR_MISSING: app exe has no parent dir".to_string())?;
+        let bin_name = if cfg!(windows) {
+            "trucalenzer-copilot.exe"
+        } else {
+            "trucalenzer-copilot"
+        };
+        let bin = dir.join(bin_name);
+        if !bin.exists() {
+            return Err(format!(
+                "SIDECAR_MISSING: {} not found next to the app",
+                bin.display()
+            ));
+        }
+        let output = std::process::Command::new(&bin)
+            .arg("status")
+            .output()
+            .map_err(|e| format!("Could not run Copilot sidecar: {e}"))?;
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        serde_json::from_str::<Value>(&stdout)
+            .map_err(|e| format!("Copilot sidecar status returned bad JSON: {e}"))
+    })
+    .await
+    .map_err(|e| format!("Copilot sidecar worker failed: {e}"))?
+}
+
+#[tauri::command]
+async fn copilot_sidecar_organize(prompt: String) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let exe = std::env::current_exe()
+            .map_err(|e| format!("SIDECAR_MISSING: could not locate app dir: {e}"))?;
+        let dir = exe
+            .parent()
+            .ok_or_else(|| "SIDECAR_MISSING: app exe has no parent dir".to_string())?;
+        let bin_name = if cfg!(windows) {
+            "trucalenzer-copilot.exe"
+        } else {
+            "trucalenzer-copilot"
+        };
+        let bin = dir.join(bin_name);
+        if !bin.exists() {
+            return Err(format!(
+                "SIDECAR_MISSING: {} not found next to the app",
+                bin.display()
+            ));
+        }
+        let mut child = std::process::Command::new(&bin)
+            .arg("organize")
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .map_err(|e| format!("Could not launch Copilot sidecar: {e}"))?;
+        use std::io::Write;
+        if let Some(mut stdin) = child.stdin.take() {
+            let _ = stdin.write_all(prompt.as_bytes());
+        }
+        let output = child
+            .wait_with_output()
+            .map_err(|e| format!("Copilot sidecar failed: {e}"))?;
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        if !output.status.success() {
+            let code = output.status.code().unwrap_or(1);
+            if code == 2 || stderr.contains("AUTH_REQUIRED") {
+                return Err(format!(
+                    "SIDECAR_AUTH: this device is not signed in to Copilot. Run `trucalenzer-copilot login` once. ({})",
+                    stderr.trim()
+                ));
+            }
+            return Err(format!(
+                "Copilot sidecar failed: {}",
+                stderr.trim()
+            ));
+        }
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        serde_json::from_str::<Value>(&stdout)
+            .map_err(|e| format!("Copilot sidecar returned bad JSON: {e}"))
+    })
+    .await
+    .map_err(|e| format!("Copilot sidecar worker failed: {e}"))?
 }
 
 #[tauri::command]
@@ -374,6 +468,8 @@ pub fn run() {
             copilot_submit_prompt,
             copilot_read_latest_response,
             copilot_status,
+            copilot_sidecar_status,
+            copilot_sidecar_organize,
             sync_identity,
             sync_seal_envelope,
             sync_open_packet,
@@ -404,5 +500,5 @@ pub fn run() {
             canvas_fetch_assignments,
         ])
         .run(tauri::generate_context!())
-        .expect("error while running Torgy");
+        .expect("error while running TruCalenZer");
 }

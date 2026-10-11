@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { DragEvent as ReactDragEvent, ReactNode, RefObject } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import {
   AlertTriangle, CalendarDays, Check, ChevronLeft, ChevronRight, ClipboardList, Download, GripVertical,
   ImagePlus, Link2, Mic, MoreHorizontal, Plus, RefreshCw, Save, Search, Settings, ShieldCheck, Trash2, Users, X,
@@ -330,7 +331,18 @@ function StudentsView({students,tasks,onOpen,onAdd,onEdit}:{students:Student[];t
 
 
 function SettingsView({snapshot,patchSettings,runtime,notice,setNotice,onExport,onRestore,onReadiness,readiness,onSync,onImport,onCanvasSync,canvasToken,setCanvasToken,canvasConnection,setCanvasConnection,agent,setAgent,replaceSnapshot,studentPairInput,setStudentPairInput,onPairStudent,updateStatus,updateBusy,onCheckUpdate,onInstallUpdate}:{snapshot:AppSnapshot;patchSettings:(p:Partial<AppSettings>)=>void;runtime:any;notice:string;setNotice:(s:string)=>void;onExport:()=>void;onRestore:()=>void;onReadiness:()=>void;readiness:ReadinessReport|null;onSync:()=>void;onImport:()=>void;onCanvasSync:()=>void;canvasToken:string;setCanvasToken:(s:string)=>void;canvasConnection:any;setCanvasConnection:(v:any)=>void;agent:any;setAgent:(v:any)=>void;replaceSnapshot:(s:AppSnapshot)=>void;studentPairInput:string;setStudentPairInput:(s:string)=>void;onPairStudent:()=>void;updateStatus:AppUpdateStatus|null;updateBusy:boolean;onCheckUpdate:()=>void;onInstallUpdate:()=>void}){
-  async function copilotTest(){try{if(!snapshot.settings.copilotUrl.trim())throw new Error('Add the approved Copilot URL first.');await openCopilotWindow(snapshot.settings.copilotUrl);await new Promise((r)=>window.setTimeout(r,2500));const result=await probeCopilotWindow();const responses=Array.isArray(result.responseContainers)?result.responseContainers.length:0;setNotice(`Copilot probe: ${Array.isArray(result.editables)?result.editables.length:0} input candidate(s), ${Array.isArray(result.buttons)?result.buttons.length:0} send/button candidate(s), ${responses} response container(s). No auth tokens, cookies, localStorage, or passwords were read.`);}catch(e){setNotice(e instanceof Error?e.message:'Copilot test failed.')}}
+  async function copilotTest(){try{
+    // Prefer the per-device CLI sidecar; fall back to the legacy WebView probe.
+    try{
+      const status=await invoke<{ok:boolean;authed:boolean;expires_in_seconds?:number|null}>('copilot_sidecar_status');
+      if(status.authed){setNotice(`Copilot CLI: signed in${typeof status.expires_in_seconds==='number'?` (token expires in ${Math.round(status.expires_in_seconds/60)} min)`:''}. Bridge ready.`);return;}
+      setNotice('Copilot CLI is installed but this device is not signed in. Run `trucalenzer-copilot login` once, then test again.');
+      return;
+    }catch(sidecarError){
+      const message=sidecarError instanceof Error?sidecarError.message:String(sidecarError);
+      if(!message.startsWith('SIDECAR_MISSING')){setNotice(`Copilot CLI: ${message}`);return;}
+    }
+    if(!snapshot.settings.copilotUrl.trim())throw new Error('Add the approved Copilot URL first.');await openCopilotWindow(snapshot.settings.copilotUrl);await new Promise((r)=>window.setTimeout(r,2500));const result=await probeCopilotWindow();const responses=Array.isArray(result.responseContainers)?result.responseContainers.length:0;setNotice(`Copilot probe: ${Array.isArray(result.editables)?result.editables.length:0} input candidate(s), ${Array.isArray(result.buttons)?result.buttons.length:0} send/button candidate(s), ${responses} response container(s). No auth tokens, cookies, localStorage, or passwords were read.`);}catch(e){setNotice(e instanceof Error?e.message:'Copilot test failed.')}}
   async function outlookAction(){try{if(snapshot.outlook.accountLabel){setNotice('Disconnecting Outlook…');const next=await disconnectOutlook(snapshot);replaceSnapshot({...next,settings:{...next.settings,outlookEnabled:false}});setNotice('Outlook disconnected.');return;}const next=await connectOutlook(snapshot);replaceSnapshot({...next,settings:{...next.settings,outlookEnabled:true}});setNotice(`Outlook connected as ${next.outlook.accountLabel}.`);}catch(e){setNotice(e instanceof Error?e.message:'Outlook connection failed.')}}
   async function canvasAction(){try{if(canvasConnection.connected){await disconnectCanvas();setCanvasConnection({connected:false,accountLabel:null,baseUrl:null});setNotice('Canvas disconnected.');return;}const r=await connectCanvas(snapshot.settings.canvasBaseUrl,canvasToken);setCanvasToken('');setCanvasConnection({connected:true,accountLabel:r.accountLabel,baseUrl:snapshot.settings.canvasBaseUrl});setNotice(`Canvas connected as ${r.accountLabel}. Token stored with Windows DPAPI.`);}catch(e){setNotice(e instanceof Error?e.message:'Canvas connection failed.')}}
   function resetAppearance(){patchSettings(DEFAULT_APPEARANCE_SETTINGS);setNotice('Appearance reset to TruCalenZer defaults.');}
@@ -338,7 +350,7 @@ function SettingsView({snapshot,patchSettings,runtime,notice,setNotice,onExport,
     <div className="settings-grid">
       <IntegrationCard title="Canvas" description={canvasConnection.connected?`Connected: ${canvasConnection.accountLabel}`:'Not connected'} action={canvasConnection.connected?'Disconnect':'Connect'} onAction={canvasAction}/>
       <IntegrationCard title="Microsoft Outlook" description={snapshot.outlook.accountLabel?`Connected: ${snapshot.outlook.accountLabel} \u00b7 ${snapshot.outlook.message??'ready'}`:'Not connected'} action={snapshot.outlook.accountLabel?'Disconnect':'Connect'} onAction={outlookAction}/>
-      <IntegrationCard title="Copilot bridge" description={snapshot.settings.copilotEnabled?'Enabled \u00b7 Microsoft session stays in a separate local WebView':'Disabled \u00b7 local organizer available'} action="Test" onAction={copilotTest}/>
+      <IntegrationCard title="Copilot bridge" description={snapshot.settings.copilotEnabled?'Enabled · per-device CLI (run `trucalenzer-copilot login` once per device)':'Disabled · local organizer available'} action="Test" onAction={copilotTest}/>
       <button className="settings-action backup-export-card" onClick={onExport}><Download size={16}/>Export JSON backup</button>
       <div className="integration-card shortcut-card"><div><strong>Keyboard shortcut</strong><small>Ctrl/{'\u2318'} N focuses the info dump.</small></div></div>
       <IntegrationCard title="TruCalenZer updates" description={updateStatus?.available?`Version ${updateStatus.version} available · current ${updateStatus.currentVersion}`:updateStatus?.supported?updateStatus.message:'Automatic update checks are enabled.'} action={updateBusy?'Working…':updateStatus?.available?'Install update':'Check'} disabled={updateBusy} onAction={updateStatus?.available?onInstallUpdate:onCheckUpdate}/>

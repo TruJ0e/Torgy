@@ -42,7 +42,10 @@
         "installerHooks": "./windows/hooks.nsh"
       }
     },
-    "createUpdaterArtifacts": false
+    "createUpdaterArtifacts": false,
+    "externalBin": [
+      "binaries/trucalenzer-copilot"
+    ]
   },
   "plugins": {
     "updater": {

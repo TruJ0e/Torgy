@@ -46,6 +46,10 @@ jobs:
         run: cargo check --manifest-path src-tauri/Cargo.toml
       - name: Test Rust backend
         run: cargo test --manifest-path src-tauri/Cargo.toml
+      - name: Build Copilot sidecar CLI
+        run: cargo build --manifest-path src-tauri/Cargo.toml --release --bin trucalenzer-copilot
+      - name: Stage Copilot sidecar for bundling
+        run: node scripts/stage-copilot-sidecar.mjs
       - name: Build DMG and app bundle
         run: npx tauri build --bundles dmg app
       - name: Create updater tarball

@@ -13,7 +13,7 @@ function isTauriRuntime() {
 }
 
 export async function openCopilotWindow(url: string) {
-  if (!isTauriRuntime()) throw new Error('Copilot WebView is available only in the installed Torgy desktop build.');
+  if (!isTauriRuntime()) throw new Error('Copilot WebView is available only in the installed TruCalenZer desktop build.');
   await invoke<void>('open_copilot_window', { url });
 }
 
@@ -34,7 +34,7 @@ function extractJsonObject(text: string) {
   const source = fenced ?? text;
   const first = source.indexOf('{');
   const last = source.lastIndexOf('}');
-  if (first < 0 || last <= first) throw new Error('Copilot responded, but Torgy could not find the expected JSON object.');
+  if (first < 0 || last <= first) throw new Error('Copilot responded, but TruCalenZer could not find the expected JSON object.');
   return JSON.parse(source.slice(first, last + 1)) as { items?: unknown };
 }
 
@@ -157,8 +157,33 @@ export class NativeCopilotInfoDumpService implements InfoDumpService {
   constructor(private readonly url: string) {}
 
   async organize(rawText: string, context?: InfoDumpContext): Promise<InfoDumpResult> {
+    if (!isTauriRuntime()) throw new Error('The Copilot bridge is available only in the installed TruCalenZer desktop build.');
+
+    // Preferred path: the per-device `trucalenzer-copilot` sidecar CLI talks
+    // directly to Copilot's web API — no WebView, no DOM scraping.
+    try {
+      const result = await invoke<{ provider?: string; responseText?: string }>(
+        'copilot_sidecar_organize',
+        { prompt: buildPrompt(rawText, context) },
+      );
+      const text = typeof result.responseText === 'string' ? result.responseText : '';
+      if (!text.trim()) throw new Error('Copilot sidecar returned an empty response.');
+      const parsed = extractJsonObject(text);
+      return { provider: 'copilot', rawText, items: normalizeItems(parsed.items, context) };
+    } catch (sidecarError) {
+      const message = sidecarError instanceof Error ? sidecarError.message : String(sidecarError);
+      // Auth problems need the user to sign the device in — say so plainly.
+      if (message.startsWith('SIDECAR_AUTH')) {
+        throw new Error(
+          'This device is not signed in to Copilot. Run `trucalenzer-copilot login` once (it is installed next to TruCalenZer), then retry.',
+        );
+      }
+      // Only fall back to the WebView bridge when the sidecar binary is absent.
+      if (!message.startsWith('SIDECAR_MISSING')) throw sidecarError instanceof Error ? sidecarError : new Error(message);
+    }
+
+    // Fallback: legacy WebView bridge (sidecar not installed yet).
     if (!this.url.trim()) throw new Error('Add the university-approved Microsoft Copilot URL in Settings first.');
-    if (!isTauriRuntime()) throw new Error('The Copilot bridge is available only in the installed Torgy desktop build.');
 
     await openCopilotWindow(this.url);
 
