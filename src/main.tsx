@@ -7,7 +7,7 @@ import './parity-fixes.css';
 
 if ('__TAURI_INTERNALS__' in window) {
   void getVersion()
-    .then((version) => document.documentElement.style.setProperty('--torgy-version', `"Torgy ${version}"`))
+    .then((version) => document.documentElement.style.setProperty('--app-version', `"TruCalenZer ${version}"`))
     .catch(() => undefined);
 }
 

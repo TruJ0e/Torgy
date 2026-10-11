@@ -134,7 +134,7 @@
 /* Version label pinned to bottom of the desktop sidebar via flex push.
    .side-nav is display:none on mobile so this never appears there. */
 .side-nav::after {
-  content: var(--torgy-version, "");
+  content: var(--app-version, "");
   display: block;
   margin-top: auto;
   padding: 6px 12px 10px;
@@ -148,7 +148,7 @@
 /* Keep the installed build version obvious without adding another verbose
    status sentence. The updater card is the sixth primary Settings tile. */
 .settings-grid > .integration-card:nth-child(6) small::before {
-  content: var(--torgy-version, "Torgy");
+  content: var(--app-version, "TruCalenZer");
   display: block;
   margin-bottom: 2px;
   color: var(--appearance-text, #2f2b27);

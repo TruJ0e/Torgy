@@ -77,7 +77,7 @@ const managedAgentTransport: SyncTransport = {
     await invoke('sync_clear_pairing_response');
   },
 };
-const portableMessage = 'Portable student synchronization is not configured yet. Torgy will keep working from encrypted local storage.';
+const portableMessage = 'Portable student synchronization is not configured yet. TruCalenZer will keep working from encrypted local storage.';
 
 const portableStudentTransport: SyncTransport = {
   mode: 'portable-student',

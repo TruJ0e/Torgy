@@ -110,11 +110,11 @@ export function parseBackupJson(text: string): AppSnapshot {
     throw new Error('Backup file is not valid JSON.');
   }
   const migrated = migrateSnapshot(parsed);
-  if (!migrated) throw new Error('This file is not a supported Torgy backup.');
+  if (!migrated) throw new Error('This file is not a supported TruCalenZer backup.');
   return migrated;
 }
 
 export async function parseBackupFile(file: File): Promise<AppSnapshot> {
-  if (!file.name.toLowerCase().endsWith('.json')) throw new Error('Torgy backups must be JSON files.');
+  if (!file.name.toLowerCase().endsWith('.json')) throw new Error('TruCalenZer backups must be JSON files.');
   return parseBackupJson(await file.text());
 }

@@ -41,6 +41,6 @@ describe('backup migration and restore', () => {
   });
 
   it('rejects unrelated JSON', () => {
-    expect(() => parseBackupJson('{"hello":"world"}')).toThrow(/supported Torgy backup/i);
+    expect(() => parseBackupJson('{"hello":"world"}')).toThrow(/supported TruCalenZer backup/i);
   });
 });

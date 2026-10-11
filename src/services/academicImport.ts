@@ -142,7 +142,7 @@ export function parseAcademicText(text: string, fileName = 'import.tsv', mimeTyp
       return value ? [value] : [];
     });
   }
-  throw new Error('Use a JSON, CSV, or tab-separated local export. Torgy does not upload the file anywhere.');
+  throw new Error('Use a JSON, CSV, or tab-separated local export. TruCalenZer does not upload the file anywhere.');
 }
 
 export async function parseAcademicFile(file: File): Promise<AcademicImportRecord[]> {
