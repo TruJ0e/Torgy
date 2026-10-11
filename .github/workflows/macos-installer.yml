@@ -48,6 +48,13 @@ jobs:
         run: cargo test --manifest-path src-tauri/Cargo.toml
       - name: Build DMG and app bundle
         run: npx tauri build --bundles dmg app
+      - name: Create updater tarball
+        # Tauri's createUpdaterArtifacts requires TAURI_SIGNING_PRIVATE_KEY in CI;
+        # we sign separately with the offline updater key, so tar the .app here.
+        run: |
+          cd src-tauri/target/release/bundle/macos
+          tar -czf TruCalenZer.app.tar.gz TruCalenZer.app
+          ls -la *.tar.gz
       - name: Upload macOS release payload
         uses: actions/upload-artifact@v7
         with:
