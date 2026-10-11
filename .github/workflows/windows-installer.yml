@@ -50,14 +50,14 @@ jobs:
         run: npm run security:repo
       - name: Test core logic
         run: npm test
-      - name: Check Rust backend
-        run: cargo check --manifest-path src-tauri/Cargo.toml
-      - name: Test Rust backend
-        run: cargo test --manifest-path src-tauri/Cargo.toml
       - name: Build Copilot sidecar CLI
         run: cargo build --manifest-path src-tauri/Cargo.toml --release --bin trucalenzer-copilot
       - name: Stage Copilot sidecar for bundling
         run: node scripts/stage-copilot-sidecar.mjs
+      - name: Check Rust backend
+        run: cargo check --manifest-path src-tauri/Cargo.toml
+      - name: Test Rust backend
+        run: cargo test --manifest-path src-tauri/Cargo.toml
       - name: Build NSIS installer
         run: npm run desktop:build
       - name: Upload Windows release payload
