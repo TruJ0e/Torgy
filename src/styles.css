@@ -759,9 +759,9 @@ html,body,#root{height:100%;overflow:hidden}
 }
 .student-card { position:relative; }
 .student-card .student-open { width:100%; }
-.student-manage-button { position:absolute; right:10px; margin:0; opacity:0; pointer-events:none; transition:opacity .15s ease; }
+.student-manage-button { position:absolute; right:10px; margin:0; opacity:.55; transition:opacity .15s ease; }
 .student-card:hover .student-manage-button,
-.student-card:focus-within .student-manage-button { opacity:1; pointer-events:auto; }
+.student-card:focus-within .student-manage-button { opacity:1; }
 .student-card:hover .student-chevron,
 .student-card:focus-within .student-chevron { opacity:0; }
 .student-page-tools { opacity:0; transition:opacity .15s ease; }
