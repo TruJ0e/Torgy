@@ -42,7 +42,7 @@
         "installerHooks": "./windows/hooks.nsh"
       }
     },
-    "createUpdaterArtifacts": false
+    "createUpdaterArtifacts": true
   },
   "plugins": {
     "updater": {
