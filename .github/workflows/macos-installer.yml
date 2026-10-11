@@ -1,0 +1,59 @@
+name: macos-installer
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'src-tauri/**'
+      - 'package.json'
+      - 'vite.config.ts'
+      - 'tsconfig*.json'
+      - '.github/workflows/macos-installer.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: torgy-macos-installer-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-macos:
+    # Apple Silicon (aarch64) — covers all Macs sold since 2020.
+    # Unsigned build: Gatekeeper will show "unidentified developer" on first
+    # launch; users right-click -> Open. No Apple Developer Program enrollment.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Release preflight
+        run: node scripts/release-preflight.mjs
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: src-tauri
+      - name: Install JavaScript dependencies
+        run: npm install --no-audit --no-fund --legacy-peer-deps
+      - name: Test core logic
+        run: npm test
+      - name: Check Rust backend
+        run: cargo check --manifest-path src-tauri/Cargo.toml
+      - name: Test Rust backend
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+      - name: Build DMG and app bundle
+        run: npx tauri build --bundles dmg app
+      - name: Upload macOS release payload
+        uses: actions/upload-artifact@v7
+        with:
+          name: trucalenzer-macos-update
+          path: |
+            src-tauri/target/release/bundle/dmg/*.dmg
+            src-tauri/target/release/bundle/macos/*.app.tar.gz
+          if-no-files-found: error
+          retention-days: 14
