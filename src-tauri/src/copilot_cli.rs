@@ -51,8 +51,7 @@ pub struct Session {
 fn session_dir() -> Result<PathBuf, String> {
     #[cfg(target_os = "windows")]
     {
-        let base =
-            std::env::var("APPDATA").map_err(|_| "APPDATA is not set".to_string())?;
+        let base = std::env::var("APPDATA").map_err(|_| "APPDATA is not set".to_string())?;
         Ok(PathBuf::from(base).join(SERVICE_DIR).join("copilot-cli"))
     }
     #[cfg(target_vendor = "apple")]
@@ -237,10 +236,9 @@ pub fn device_code_login(json_output: bool) -> Result<Session, String> {
 }
 
 fn refresh_access_token(session: &mut Session) -> Result<(), String> {
-    let refresh = session
-        .refresh_token
-        .clone()
-        .ok_or_else(|| "AUTH_REQUIRED: no refresh token; run `trucalenzer-copilot login`.".to_string())?;
+    let refresh = session.refresh_token.clone().ok_or_else(|| {
+        "AUTH_REQUIRED: no refresh token; run `trucalenzer-copilot login`.".to_string()
+    })?;
     let client = http_client()?;
     // `scope()` returns an owned String; bind it so the borrow lives long enough.
     let scope_owned = scope();
@@ -405,9 +403,12 @@ pub fn chat_once(prompt: &str, session: &mut Session) -> Result<String, String> 
     let (mut socket, _resp) =
         tungstenite::connect(request).map_err(|e| format!("WS connect failed: {e}"))?;
 
-    let send_frame = |socket: &mut tungstenite::WebSocket<tungstenite::stream::MaybeTlsStream<std::net::TcpStream>>, value: Value| -> Result<(), String> {
-        let text =
-            serde_json::to_string(&value).map_err(|e| format!("Encode frame: {e}"))?;
+    let send_frame = |socket: &mut tungstenite::WebSocket<
+        tungstenite::stream::MaybeTlsStream<std::net::TcpStream>,
+    >,
+                      value: Value|
+     -> Result<(), String> {
+        let text = serde_json::to_string(&value).map_err(|e| format!("Encode frame: {e}"))?;
         socket
             .send(tungstenite::Message::Text(text.into()))
             .map_err(|e| format!("WS send failed: {e}"))
@@ -439,16 +440,13 @@ pub fn chat_once(prompt: &str, session: &mut Session) -> Result<String, String> 
         if Instant::now() > deadline {
             return Err("Copilot did not finish before the chat timeout.".to_string());
         }
-        let msg = socket
-            .read()
-            .map_err(|e| format!("WS read failed: {e}"))?;
+        let msg = socket.read().map_err(|e| format!("WS read failed: {e}"))?;
         let text = match msg {
             tungstenite::Message::Text(t) => t.to_string(),
             tungstenite::Message::Close(_) => break,
             _ => continue,
         };
-        let frame: Value =
-            serde_json::from_str(&text).map_err(|e| format!("Bad WS frame: {e}"))?;
+        let frame: Value = serde_json::from_str(&text).map_err(|e| format!("Bad WS frame: {e}"))?;
         let event = frame.get("event").and_then(Value::as_str).unwrap_or("");
         match event {
             "connected" | "received" | "startMessage" | "partCompleted" => continue,
@@ -463,11 +461,8 @@ pub fn chat_once(prompt: &str, session: &mut Session) -> Result<String, String> 
                 let parameter = frame.get("parameter").and_then(Value::as_str).unwrap_or("");
                 let solution = match method {
                     Some("hashcash") => {
-                        let difficulty = frame
-                            .get("difficulty")
-                            .and_then(Value::as_u64)
-                            .unwrap_or(4)
-                            as u32;
+                        let difficulty =
+                            frame.get("difficulty").and_then(Value::as_u64).unwrap_or(4) as u32;
                         Some(solve_hashcash(parameter, difficulty))
                     }
                     Some("copilot") => solve_copilot_arithmetic(parameter),
