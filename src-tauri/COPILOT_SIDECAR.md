@@ -26,6 +26,17 @@ Opens the MSAL device-code flow: visit the printed URL, enter the code, sign
 in with the Microsoft/university account. Tokens are stored in a `0600`
 session file under the platform app-data dir and auto-refreshed.
 
+`login --json` prints the device-code payload as a single JSON line
+(`verification_uri`, `user_code`, `expires_in_seconds`) for app-driven
+sign-in dialogs; human text goes to stderr.
+
+**In-app first-run:** when the app boots with Copilot enabled but the device
+isn't signed in, TruCalenZer shows a sign-in dialog automatically — big code,
+"Open Microsoft sign-in" button (opens the system browser), and it watches
+for completion. Settings → Copilot bridge → Test re-triggers it manually.
+This is the cross-platform "sign in during setup" flow (Mac DMGs can't run
+installer code, so first-run in the app is the install-time equivalent).
+
 Escape hatches:
 
 - `trucalenzer-copilot login --cookies "<cookie header>"` — paste session

@@ -78,6 +78,35 @@ export default function App(){
   const [sectionOrder,setSectionOrder]=useState<SectionKey[]>(()=>{try{const saved=localStorage.getItem('trucalenzer-section-order-v1');if(saved){const parsed=JSON.parse(saved) as SectionKey[];if(DEFAULT_SECTION_ORDER.every((key)=>parsed.includes(key)))return parsed}}catch{}return DEFAULT_SECTION_ORDER}); const [quickAdd,setQuickAdd]=useState<{scheduledAt:string}|null>(null);
   const [editingTask,setEditingTask]=useState<Task|null>(null); const [editingStudent,setEditingStudent]=useState<Student|'new'|null>(null);
   const [searchOpen,setSearchOpen]=useState(false); const [searchQuery,setSearchQuery]=useState('');
+  const [copilotLogin,setCopilotLogin]=useState<{verification_uri:string;user_code:string;expires_in_seconds:number}|null>(null);
+  const [copilotLoginDone,setCopilotLoginDone]=useState(false);
+  const copilotPrompted=useRef(false);
+
+  async function beginCopilotLogin(){
+    try{
+      const payload=await invoke<{verification_uri:string;user_code:string;expires_in_seconds:number}>('copilot_sidecar_login_begin');
+      setCopilotLoginDone(false);
+      setCopilotLogin(payload);
+    }catch(e){setNotice(e instanceof Error?e.message:'Could not start Copilot sign-in.')}
+  }
+
+  // First-run: if Copilot is enabled but this device isn't signed in, walk
+  // the user through the one-time sign-in right away.
+  useEffect(()=>{
+    if(!booted||copilotPrompted.current)return;
+    if(!(typeof window!=='undefined'&&('__TAURI_INTERNALS__' in window||'__TAURI__' in window)))return;
+    if(!snapshot.settings.copilotEnabled)return;
+    copilotPrompted.current=true;
+    (async()=>{
+      try{
+        const status=await invoke<{ok:boolean;authed:boolean}>('copilot_sidecar_status');
+        if(!status.authed)await beginCopilotLogin();
+      }catch(e){
+        const message=e instanceof Error?e.message:String(e);
+        if(!message.startsWith('SIDECAR_MISSING'))setNotice(`Copilot sign-in check: ${message}`);
+      }
+    })();
+  },[booted]);
   const [calMode,setCalMode]=useState<'day'|'week'|'month'>('week'); const [calAnchor,setCalAnchor]=useState<string>(isoToday()); const [runtime,setRuntime]=useState<RuntimeInfo>({platform:'loading',storage:'loading',appDataDir:'',appMode:'development',supportsCoordinator:true,supportsStudent:true,supportsManagedAgent:false,supportsPortableSync:false,portableSyncConfigured:false,secureStorage:false,managedAgentInstalled:false,managedAgentConfigured:false,legacyPerMachineInstall:false});
   const [defaults,setDefaults]=useState<DeploymentDefaults>({copilotUrl:'',outlookTenantId:'',outlookClientId:'',syncSharePath:'',canvasBaseUrl:''});
   const [pairCode,setPairCode]=useState<{student:string;code:string;expiresAt:string}|null>(null); const [studentPairInput,setStudentPairInput]=useState('');
@@ -154,7 +183,7 @@ export default function App(){
         {view==='tasks'&&<TasksView snapshot={snapshot} selectedStudentId={selectedStudentId} onClearStudent={()=>selectStudent('all')} dump={dump} setDump={setDump} speaking={speaking} speak={speak} notice={notice} suggestions={suggestions} suggestionQuadrant={suggestionQuadrant} quadrantOverrides={quadrantOverrides} setQuadrantOverrides={setQuadrantOverrides} addSuggestions={addSuggestions} clearSuggestions={clearSuggestions} patchSuggestion={patchSuggestion} sections={sections} sectionOrder={sectionOrder} moveSection={moveSection} moveTaskToSection={moveTaskToSection} taskFilter={taskFilter} setTaskFilter={setTaskFilter} onToggle={toggleDone} onEdit={setEditingTask} onDelete={removeTask} onResolveReview={(id,res)=>setSnapshot((p)=>queueTaskDifferences(p,resolveDuplicateReview(p,id,res)))} dumpRef={dumpInput}/>}
         {view==='calendar'&&<CalendarView tasks={visibleTasks} students={snapshot.students} settings={snapshot.settings} mode={calMode} setMode={setCalMode} anchor={calAnchor} setAnchor={setCalAnchor} onEdit={setEditingTask} onMove={moveTaskSchedule} onQuickAdd={(scheduledAt)=>setQuickAdd({scheduledAt})}/>}
         {view==='students'&&snapshot.settings.role==='coordinator'&&<StudentsView students={snapshot.students} tasks={snapshot.tasks} onAdd={()=>setEditingStudent('new')} onEdit={setEditingStudent} onOpen={(id)=>{selectStudent(id);setView('tasks')}}/>}
-        {view==='settings'&&<SettingsView snapshot={snapshot} patchSettings={patchSettings} runtime={runtime} notice={notice} setNotice={setNotice} onExport={downloadBackup} onRestore={()=>backupInput.current?.click()} onReadiness={checkReadiness} readiness={readiness} onSync={runAllSync} onImport={()=>fileInput.current?.click()} onCanvasSync={doCanvasSync} canvasToken={canvasToken} setCanvasToken={setCanvasToken} canvasConnection={canvasConnection} setCanvasConnection={setCanvasConnection} agent={agent} setAgent={setAgent} replaceSnapshot={setSnapshot} studentPairInput={studentPairInput} setStudentPairInput={setStudentPairInput} onPairStudent={pairStudent} updateStatus={updateStatus} updateBusy={updateBusy} onCheckUpdate={checkUpdates} onInstallUpdate={installUpdate}/>}
+        {view==='settings'&&<SettingsView snapshot={snapshot} patchSettings={patchSettings} runtime={runtime} notice={notice} setNotice={setNotice} onExport={downloadBackup} onRestore={()=>backupInput.current?.click()} onReadiness={checkReadiness} readiness={readiness} onSync={runAllSync} onImport={()=>fileInput.current?.click()} onCanvasSync={doCanvasSync} canvasToken={canvasToken} setCanvasToken={setCanvasToken} canvasConnection={canvasConnection} setCanvasConnection={setCanvasConnection} agent={agent} setAgent={setAgent} replaceSnapshot={setSnapshot} studentPairInput={studentPairInput} setStudentPairInput={setStudentPairInput} onPairStudent={pairStudent} updateStatus={updateStatus} updateBusy={updateBusy} onCheckUpdate={checkUpdates} onInstallUpdate={installUpdate} onCopilotLogin={beginCopilotLogin}/>}
       </section>
     </div>
     {undoTask&&<output className="undo-toast">Task completed<button onClick={undoComplete}>Undo</button></output>}
@@ -162,6 +191,7 @@ export default function App(){
     <input ref={backupInput} type="file" accept=".json" hidden onChange={(e)=>{const f=e.target.files?.[0];if(f)void restoreBackup(f)}}/>
     <BottomNav view={view} setView={setView} role={snapshot.settings.role}/>
     {searchOpen&&<SearchDialog snapshot={snapshot} query={searchQuery} setQuery={setSearchQuery} onClose={()=>{setSearchOpen(false);setSearchQuery('')}} onOpenTask={(task)=>{setEditingTask(task);setSearchOpen(false);setSearchQuery('')}} onOpenStudent={(id)=>{selectStudent(id);setView('tasks');setSearchOpen(false);setSearchQuery('')}}/>}
+    {copilotLogin&&!copilotLoginDone&&<CopilotLoginDialog payload={copilotLogin} onDone={()=>{setCopilotLoginDone(true);setCopilotLogin(null);setNotice('This device is signed in to Microsoft Copilot.');}} onClose={()=>setCopilotLogin(null)}/>}
     {editingTask&&<TaskDialog task={editingTask} students={snapshot.students} roleLabel={snapshot.settings.role==='coordinator'?'Advisor view':'Student view'} onClose={()=>setEditingTask(null)} onSave={saveTask} onDelete={()=>removeTask(editingTask.id)}/>}
     {editingStudent&&<StudentDialog student={editingStudent==='new'?null:editingStudent} onClose={()=>setEditingStudent(null)} onSave={saveStudent} onDelete={editingStudent==='new'?undefined:()=>removeStudent(editingStudent.id)} onPair={editingStudent==='new'?undefined:()=>{makePairCode(editingStudent);setEditingStudent(null)}}/>}
     {quickAdd&&<QuickAddDialog scheduledAt={quickAdd.scheduledAt} students={snapshot.students} canPickOwner={snapshot.settings.role==='coordinator'} defaultStudentId={selectedStudentId==='all'?null:selectedStudentId} onClose={()=>setQuickAdd(null)} onCreate={addCalendarTask}/>}
@@ -330,13 +360,13 @@ function StudentsView({students,tasks,onOpen,onAdd,onEdit}:{students:Student[];t
 }
 
 
-function SettingsView({snapshot,patchSettings,runtime,notice,setNotice,onExport,onRestore,onReadiness,readiness,onSync,onImport,onCanvasSync,canvasToken,setCanvasToken,canvasConnection,setCanvasConnection,agent,setAgent,replaceSnapshot,studentPairInput,setStudentPairInput,onPairStudent,updateStatus,updateBusy,onCheckUpdate,onInstallUpdate}:{snapshot:AppSnapshot;patchSettings:(p:Partial<AppSettings>)=>void;runtime:any;notice:string;setNotice:(s:string)=>void;onExport:()=>void;onRestore:()=>void;onReadiness:()=>void;readiness:ReadinessReport|null;onSync:()=>void;onImport:()=>void;onCanvasSync:()=>void;canvasToken:string;setCanvasToken:(s:string)=>void;canvasConnection:any;setCanvasConnection:(v:any)=>void;agent:any;setAgent:(v:any)=>void;replaceSnapshot:(s:AppSnapshot)=>void;studentPairInput:string;setStudentPairInput:(s:string)=>void;onPairStudent:()=>void;updateStatus:AppUpdateStatus|null;updateBusy:boolean;onCheckUpdate:()=>void;onInstallUpdate:()=>void}){
+function SettingsView({snapshot,patchSettings,runtime,notice,setNotice,onExport,onRestore,onReadiness,readiness,onSync,onImport,onCanvasSync,canvasToken,setCanvasToken,canvasConnection,setCanvasConnection,agent,setAgent,replaceSnapshot,studentPairInput,setStudentPairInput,onPairStudent,updateStatus,updateBusy,onCheckUpdate,onInstallUpdate,onCopilotLogin}:{snapshot:AppSnapshot;patchSettings:(p:Partial<AppSettings>)=>void;runtime:any;notice:string;setNotice:(s:string)=>void;onExport:()=>void;onRestore:()=>void;onReadiness:()=>void;readiness:ReadinessReport|null;onSync:()=>void;onImport:()=>void;onCanvasSync:()=>void;canvasToken:string;setCanvasToken:(s:string)=>void;canvasConnection:any;setCanvasConnection:(v:any)=>void;agent:any;setAgent:(v:any)=>void;replaceSnapshot:(s:AppSnapshot)=>void;studentPairInput:string;setStudentPairInput:(s:string)=>void;onPairStudent:()=>void;updateStatus:AppUpdateStatus|null;updateBusy:boolean;onCheckUpdate:()=>void;onInstallUpdate:()=>void;onCopilotLogin:()=>void}){
   async function copilotTest(){try{
     // Prefer the per-device CLI sidecar; fall back to the legacy WebView probe.
     try{
       const status=await invoke<{ok:boolean;authed:boolean;expires_in_seconds?:number|null}>('copilot_sidecar_status');
       if(status.authed){setNotice(`Copilot CLI: signed in${typeof status.expires_in_seconds==='number'?` (token expires in ${Math.round(status.expires_in_seconds/60)} min)`:''}. Bridge ready.`);return;}
-      setNotice('Copilot CLI is installed but this device is not signed in. Run `trucalenzer-copilot login` once, then test again.');
+      await onCopilotLogin();
       return;
     }catch(sidecarError){
       const message=sidecarError instanceof Error?sidecarError.message:String(sidecarError);
@@ -390,3 +420,37 @@ function TaskDialog({task,students,roleLabel,onClose,onSave,onDelete}:{task:Task
   return <div className="dialog-backdrop" onMouseDown={(event)=>{if(event.target===event.currentTarget)onClose()}}><section className="dialog"><header><div><h2>Task details</h2><p className="muted-copy">Due date and work schedule stay separate.</p></div><button className="icon-button" onClick={onClose}><X/></button></header><label>Title<input value={draft.title} onChange={(event)=>patch({title:event.target.value})}/></label><div className="two-col"><label>Duration<select value={draft.durationMinutes??''} onChange={(event)=>patch({durationMinutes:event.target.value?Number(event.target.value):null})}><option value="">None</option>{[15,30,45,60,90,120,180,240,480].map((minutes)=><option value={minutes} key={minutes}>{minutes>=480?'All day':`${minutes} minutes`}</option>)}</select></label><label>Priority<select value={draft.priority} onChange={(event)=>patch({priority:event.target.value as Priority})}><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option></select></label></div><label>Owner<select value={draft.studentId??''} onChange={(event)=>patch({studentId:event.target.value||null})}><option value="">{roleLabel==='Advisor view'?'Advisor':'Personal'}</option>{students.map((student)=><option value={student.id} key={student.id}>{student.displayName}</option>)}</select></label><div className="two-col"><label>Date status<select value={draft.dateConfidence} onChange={(event)=>setConfidence(event.target.value as DateConfidence)}><option value="confirmed">Confirmed</option><option value="possible">Possible</option><option value="undated">No date</option></select></label><label>{draft.dateConfidence==='possible'?'Possible date':'Due date'}<input type="date" disabled={draft.dateConfidence==='undated'} value={draft.dueDate??draft.possibleDate??''} onChange={(event)=>draft.dateConfidence==='confirmed'?patch({dueDate:event.target.value||null}):patch({possibleDate:event.target.value||null})}/></label></div>{draft.dateConfidence==='possible'&&<div className="warning-line"><AlertTriangle size={16}/>Not authoritative until a human changes it to Confirmed.</div>}<fieldset><legend>Schedule (syncs to Outlook; does not change due date)</legend><div className="two-col"><input aria-label="Schedule date" type="date" value={scheduleDate} onChange={(event)=>setSchedule(event.target.value,scheduleTime)}/><input aria-label="Schedule time" type="time" step="1800" disabled={!scheduleDate} value={scheduleTime} onChange={(event)=>setSchedule(scheduleDate,event.target.value)}/></div></fieldset><label>Repeat<select disabled={!draft.scheduledAt} value={weekly?'weekly':'once'} onChange={(event)=>patch({recurringRule:event.target.value==='weekly'?serializeWeeklyRule([new Date(draft.scheduledAt!).getDay()]):null})}><option value="once">Once</option><option value="weekly">Weekly on selected days</option></select></label>{weekly&&<fieldset><legend>Repeat on</legend><RepeatDays days={weekly.days} onChange={(days)=>patch({recurringRule:setWeeklyDays(draft.recurringRule,days)})}/><p className="muted-copy">Rule: {draft.recurringRule}. Moving one calendar occurrence creates a local exception without changing this series or its due date.</p></fieldset>}{!draft.scheduledAt&&<p className="muted-copy">Add a schedule before enabling repeat.</p>}<label>Notes<textarea className="notes-input" value={draft.notes} onChange={(event)=>patch({notes:event.target.value})}/></label><footer><button className="danger-link" onClick={onDelete}>Delete</button><span/><button className="secondary" onClick={onClose}>Cancel</button><button className="primary" onClick={()=>onSave(draft)} disabled={!draft.title.trim()}><Save size={16}/>Save</button></footer></section></div>
 }
 function SimpleDialog({title,onClose,children}:{title:string;onClose:()=>void;children:ReactNode}){return <div className="dialog-backdrop" onMouseDown={(e)=>{if(e.target===e.currentTarget)onClose()}}><section className="dialog"><header><h2>{title}</h2><button className="icon-button" onClick={onClose}><X/></button></header>{children}<footer><span/><span/><button className="primary" onClick={onClose}>Done</button></footer></section></div>}
+function CopilotLoginDialog({payload,onDone,onClose}:{payload:{verification_uri:string;user_code:string;expires_in_seconds:number};onDone:()=>void;onClose:()=>void}){
+  const [copied,setCopied]=useState(false);
+  useEffect(()=>{
+    let cancelled=false;
+    const timer=setInterval(async()=>{
+      try{
+        const status=await invoke<{ok:boolean;authed:boolean}>('copilot_sidecar_status');
+        if(!cancelled&&status.authed){clearInterval(timer);onDone();}
+      }catch{/* keep polling */}
+    },5000);
+    return ()=>{cancelled=true;clearInterval(timer)};
+  },[]);
+  async function openSignIn(){
+    try{await invoke('open_external_url',{url:payload.verification_uri});}
+    catch{/* browser open failed; user can copy the URL manually */}
+  }
+  async function copyCode(){
+    try{await navigator.clipboard.writeText(payload.user_code);setCopied(true);setTimeout(()=>setCopied(false),2000);}
+    catch{/* clipboard unavailable */}
+  }
+  return <div className="dialog-backdrop"><section className="dialog" role="dialog" aria-label="Sign in to Microsoft Copilot">
+    <header><div><h2>Sign in to Microsoft Copilot</h2><p className="muted-copy">One-time setup for this device. After this, Info Dump uses Copilot directly.</p></div></header>
+    <ol className="muted-copy" style={{margin:'0 0 12px 18px',padding:0}}>
+      <li>Click <strong>Open Microsoft sign-in</strong> below.</li>
+      <li>Enter this code on the Microsoft page:</li>
+    </ol>
+    <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
+      <code style={{fontSize:28,letterSpacing:4,padding:'8px 16px',background:'#f1ebdf',borderRadius:8}}>{payload.user_code}</code>
+      <button className="secondary compact" onClick={copyCode}>{copied?'Copied!':'Copy'}</button>
+    </div>
+    <p className="muted-copy">This page is watching — it will confirm automatically when you finish signing in.</p>
+    <footer><button className="secondary" onClick={onClose}>Later</button><span/><button className="primary" onClick={openSignIn}>Open Microsoft sign-in</button></footer>
+  </section></div>;
+}

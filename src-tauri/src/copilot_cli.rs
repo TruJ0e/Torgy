@@ -153,7 +153,9 @@ struct TokenResponse {
 
 /// Runs the MSAL device-code flow. Prints the user code/URL to stdout and
 /// blocks until the user completes sign-in (or it expires).
-pub fn device_code_login() -> Result<Session, String> {
+/// If `json_output` is true, the device-code payload is printed as a single
+/// JSON line first (for app-driven sign-in dialogs), human text goes to stderr.
+pub fn device_code_login(json_output: bool) -> Result<Session, String> {
     let client = http_client()?;
     let form = [("client_id", CLIENT_ID), ("scope", &scope())];
     let dc: DeviceCodeResponse = client
@@ -170,13 +172,24 @@ pub fn device_code_login() -> Result<Session, String> {
         .verification_uri_complete
         .clone()
         .unwrap_or(dc.verification_uri.clone());
-    println!("To sign in this device to Microsoft Copilot:");
-    println!("  1. Open {url}");
-    println!("  2. Enter code: {}", dc.user_code);
-    if let Some(msg) = dc.message.as_deref() {
-        eprintln!("{msg}");
+    if json_output {
+        // Machine-readable first line for app-driven dialogs.
+        let payload = json!({
+            "verification_uri": url,
+            "user_code": dc.user_code,
+            "expires_in_seconds": dc.expires_in,
+        });
+        println!("{payload}");
+        std::io::stdout().flush().ok();
+    } else {
+        println!("To sign in this device to Microsoft Copilot:");
+        println!("  1. Open {url}");
+        println!("  2. Enter code: {}", dc.user_code);
+        if let Some(msg) = dc.message.as_deref() {
+            eprintln!("{msg}");
+        }
+        std::io::stdout().flush().ok();
     }
-    std::io::stdout().flush().ok();
 
     let deadline = Instant::now() + Duration::from_secs(dc.expires_in.saturating_sub(30));
     let mut interval = Duration::from_secs(dc.interval.max(5));

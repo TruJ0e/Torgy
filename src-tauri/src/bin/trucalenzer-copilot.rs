@@ -19,7 +19,7 @@ use trucalenzer_lib::copilot_cli;
 
 fn usage() -> ! {
     eprintln!("usage:");
-    eprintln!("  trucalenzer-copilot login [--cookies \"<cookie header>\"]");
+    eprintln!("  trucalenzer-copilot login [--json] [--cookies \"<cookie header>\"]");
     eprintln!("  trucalenzer-copilot status");
     eprintln!("  trucalenzer-copilot ask --text \"...\"");
     eprintln!("  trucalenzer-copilot organize   # prompt via stdin");
@@ -42,6 +42,7 @@ fn main() {
 }
 
 fn cmd_login(rest: &[String]) -> i32 {
+    let json_output = rest.iter().any(|a| a == "--json");
     // `--cookies` escape hatch: store pasted cookies without any OAuth dance.
     if let Some(i) = rest.iter().position(|a| a == "--cookies") {
         let value = rest.get(i + 1).cloned().unwrap_or_default();
@@ -62,11 +63,17 @@ fn cmd_login(rest: &[String]) -> i32 {
             }
         }
     } else {
-        println!("Signing in this device to Microsoft Copilot (one-time per device).");
-        match copilot_cli::device_code_login() {
+        if !json_output {
+            println!("Signing in this device to Microsoft Copilot (one-time per device).");
+        }
+        match copilot_cli::device_code_login(json_output) {
             Ok(session) => match copilot_cli::save_session(&session) {
                 Ok(()) => {
-                    println!("Signed in. This device can now use the Copilot bridge.");
+                    if json_output {
+                        eprintln!("signed-in");
+                    } else {
+                        println!("Signed in. This device can now use the Copilot bridge.");
+                    }
                     0
                 }
                 Err(e) => {

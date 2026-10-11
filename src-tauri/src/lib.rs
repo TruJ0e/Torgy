@@ -169,6 +169,71 @@ async fn copilot_sidecar_status() -> Result<Value, String> {
     .map_err(|e| format!("Copilot sidecar worker failed: {e}"))?
 }
 
+/// Opens a URL in the system browser (used for the Copilot device-code sign-in).
+#[tauri::command]
+fn open_external_url(url: String) -> Result<(), String> {
+    let parsed = url::Url::parse(&url).map_err(|_| "URL is not valid.".to_string())?;
+    if parsed.scheme() != "https" {
+        return Err("Only HTTPS URLs can be opened.".to_string());
+    }
+    webbrowser::open(&url).map_err(|e| format!("Could not open browser: {e}"))
+}
+
+/// Starts a detached `trucalenzer-copilot login --json` and returns the
+/// device-code payload (`verification_uri`, `user_code`, `expires_in_seconds`).
+/// The login process keeps polling in the background; the frontend polls
+/// `copilot_sidecar_status` to detect completion.
+#[tauri::command]
+async fn copilot_sidecar_login_begin() -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let exe = std::env::current_exe()
+            .map_err(|e| format!("SIDECAR_MISSING: could not locate app dir: {e}"))?;
+        let dir = exe
+            .parent()
+            .ok_or_else(|| "SIDECAR_MISSING: app exe has no parent dir".to_string())?;
+        let bin_name = if cfg!(windows) {
+            "trucalenzer-copilot.exe"
+        } else {
+            "trucalenzer-copilot"
+        };
+        let bin = dir.join(bin_name);
+        if !bin.exists() {
+            return Err(format!(
+                "SIDECAR_MISSING: {} not found next to the app",
+                bin.display()
+            ));
+        }
+        let mut child = std::process::Command::new(&bin)
+            .arg("login")
+            .arg("--json")
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .map_err(|e| format!("Could not launch Copilot sidecar: {e}"))?;
+        // Read the first stdout line (the JSON device-code payload).
+        let first_line = child
+            .stdout
+            .take()
+            .map(|stdout| {
+                use std::io::BufRead;
+                let mut reader = std::io::BufReader::new(stdout);
+                let mut line = String::new();
+                reader.read_line(&mut line).map(|_| line).map_err(|e| e.to_string())
+            })
+            .ok_or_else(|| "Copilot sidecar produced no output.".to_string())??;
+        // Detach: reap the child on a background thread so it never zombifies.
+        std::thread::spawn(move || {
+            let _ = child.wait();
+        });
+        serde_json::from_str::<Value>(first_line.trim()).map_err(|e| {
+            format!("Copilot sidecar returned bad JSON: {e} (got: {})", first_line.trim())
+        })
+    })
+    .await
+    .map_err(|e| format!("Copilot sidecar worker failed: {e}"))?
+}
+
 #[tauri::command]
 async fn copilot_sidecar_organize(prompt: String) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
@@ -464,11 +529,13 @@ pub fn run() {
             export_backup_json,
             speech_dictate_once,
             open_copilot_window,
+            open_external_url,
             copilot_probe,
             copilot_submit_prompt,
             copilot_read_latest_response,
             copilot_status,
             copilot_sidecar_status,
+            copilot_sidecar_login_begin,
             copilot_sidecar_organize,
             sync_identity,
             sync_seal_envelope,
