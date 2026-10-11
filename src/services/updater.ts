@@ -38,7 +38,7 @@ export async function checkForAppUpdate(): Promise<AppUpdateStatus> {
   pendingUpdate = update;
 
   if (!update) {
-    return { supported: true, available: false, currentVersion, version: null, notes: null, message: `Torgy ${currentVersion} is up to date.` };
+    return { supported: true, available: false, currentVersion, version: null, notes: null, message: `TruCalenZer ${currentVersion} is up to date.` };
   }
 
   return {
@@ -47,19 +47,19 @@ export async function checkForAppUpdate(): Promise<AppUpdateStatus> {
     currentVersion: update.currentVersion,
     version: update.version,
     notes: update.body ?? null,
-    message: `Torgy ${update.version} is ready to install.`,
+    message: `TruCalenZer ${update.version} is ready to install.`,
   };
 }
 
 export async function installAvailableUpdate(onProgress?: (message: string) => void) {
   if (!pendingUpdate) {
     const status = await checkForAppUpdate();
-    if (!status.available || !pendingUpdate) throw new Error('No Torgy update is currently available.');
+    if (!status.available || !pendingUpdate) throw new Error('No TruCalenZer update is currently available.');
   }
 
   let downloaded = 0;
   let total: number | null = null;
-  onProgress?.(`Downloading Torgy ${pendingUpdate.version}…`);
+  onProgress?.(`Downloading TruCalenZer ${pendingUpdate.version}…`);
   await pendingUpdate.downloadAndInstall((event) => {
     if (event.event === 'Started') {
       total = event.data.contentLength ?? null;

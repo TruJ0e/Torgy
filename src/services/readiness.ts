@@ -19,11 +19,11 @@ export async function runReadinessCheck(snapshot: AppSnapshot, runtime: RuntimeI
     capabilities.secureStorage ? 'ready' : 'warning',
     capabilities.secureStorage
       ? `${runtime.storage}${runtime.appDataDir ? ` · ${runtime.appDataDir}` : ''}`
-      : `${runtime.storage}. Production Torgy requires OS-backed secure storage.`,
+      : `${runtime.storage}. Production TruCalenZer requires OS-backed secure storage.`,
   ));
 
   if (!snapshot.settings.copilotEnabled) {
-    checks.push(check('copilot', 'Microsoft Copilot', 'warning', 'Disabled. Torgy still works, but Info Dump uses the deterministic local fallback.'));
+    checks.push(check('copilot', 'Microsoft Copilot', 'warning', 'Disabled. TruCalenZer still works, but Info Dump uses the deterministic local fallback.'));
   } else if (!snapshot.settings.copilotUrl.trim()) {
     checks.push(check('copilot', 'Microsoft Copilot', 'blocked', 'Enabled but no approved Microsoft Copilot URL is configured.'));
   } else {
@@ -51,7 +51,7 @@ export async function runReadinessCheck(snapshot: AppSnapshot, runtime: RuntimeI
     checks.push(check('sync', 'Coordinator/student sync', 'blocked', 'Synchronization is disabled.'));
   } else if (snapshot.settings.role === 'coordinator') {
     if (!capabilities.supportsCoordinator) {
-      checks.push(check('sync', 'Coordinator/student sync', 'blocked', 'Coordinator features are not available in this Torgy student build.'));
+      checks.push(check('sync', 'Coordinator/student sync', 'blocked', 'Coordinator features are not available in this TruCalenZer student build.'));
     } else if (!snapshot.settings.syncSharePath.trim()) {
       checks.push(check('sync', 'Coordinator/student sync', 'blocked', 'The university staff-only sync drive path is not configured.'));
     } else {
@@ -68,7 +68,7 @@ export async function runReadinessCheck(snapshot: AppSnapshot, runtime: RuntimeI
       'sync',
       'Coordinator/student sync',
       ready ? 'ready' : 'blocked',
-      ready ? 'Portable encrypted student synchronization is configured.' : 'Portable student synchronization is not configured yet. Local encrypted Torgy data remains available offline.',
+      ready ? 'Portable encrypted student synchronization is configured.' : 'Portable student synchronization is not configured yet. Local encrypted TruCalenZer data remains available offline.',
     ));
   } else if (snapshot.settings.syncTransportMode === 'managed-agent') {
     if (!capabilities.supportsManagedAgent) {
@@ -109,7 +109,7 @@ export async function runReadinessCheck(snapshot: AppSnapshot, runtime: RuntimeI
       checks.push(check('academic-import', 'Academic assignment source', 'warning', error instanceof Error ? error.message : 'Canvas status could not be checked.'));
     }
   } else {
-    checks.push(check('academic-import', 'Academic assignment source', 'ready', snapshot.settings.academicImportMode === 'docs' ? 'Google Docs/Sheets export mode selected; imported files remain local to Torgy.' : 'Local file import mode selected.'));
+    checks.push(check('academic-import', 'Academic assignment source', 'ready', snapshot.settings.academicImportMode === 'docs' ? 'Google Docs/Sheets export mode selected; imported files remain local to TruCalenZer.' : 'Local file import mode selected.'));
   }
 
   checks.push(check('backup', 'Backup/restore', 'ready', 'Local JSON backup export and schema-validated restore are available. Store backups only in an approved location.'));
