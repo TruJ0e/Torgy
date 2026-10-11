@@ -12,7 +12,7 @@ export function scheduleTaskAt(task: Task, isoDateTime: string | null, now = new
 export interface QuickAddInput {
   title: string;
   studentId: string | null;
-  scheduledAt: string;
+  scheduledAt: string | null;
   durationMinutes: number | null;
   priority: Priority;
   deviceId: string;

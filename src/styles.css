@@ -916,3 +916,8 @@ html,body,#root{height:100%;overflow:hidden}
 .eisenhower-grip:hover{background:#f1ebdf;color:#4d453b}
 .task .section-grip{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:6px;cursor:grab;color:#8f867a}
 .task .section-grip:hover{background:#f1ebdf;color:#4d453b}
+
+.quick-capture{display:flex;align-items:center;gap:8px;background:#fbf8f1;border:1px solid #e8e0d0;border-radius:10px;padding:8px 12px;margin:0 0 12px;color:#8f867a}
+.quick-capture input{flex:1;border:0;background:transparent;font-size:15px;color:#4d453b;outline:none}
+.quick-capture input::placeholder{color:#a89e8d}
+.quick-capture:focus-within{border-color:#c9bfa9;box-shadow:0 0 0 2px #efe8d8}
