@@ -219,7 +219,10 @@ async fn copilot_sidecar_login_begin() -> Result<Value, String> {
                 use std::io::BufRead;
                 let mut reader = std::io::BufReader::new(stdout);
                 let mut line = String::new();
-                reader.read_line(&mut line).map(|_| line).map_err(|e| e.to_string())
+                reader
+                    .read_line(&mut line)
+                    .map(|_| line)
+                    .map_err(|e| e.to_string())
             })
             .ok_or_else(|| "Copilot sidecar produced no output.".to_string())??;
         // Detach: reap the child on a background thread so it never zombifies.
@@ -227,7 +230,10 @@ async fn copilot_sidecar_login_begin() -> Result<Value, String> {
             let _ = child.wait();
         });
         serde_json::from_str::<Value>(first_line.trim()).map_err(|e| {
-            format!("Copilot sidecar returned bad JSON: {e} (got: {})", first_line.trim())
+            format!(
+                "Copilot sidecar returned bad JSON: {e} (got: {})",
+                first_line.trim()
+            )
         })
     })
     .await
