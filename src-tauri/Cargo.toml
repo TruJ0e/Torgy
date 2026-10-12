@@ -1,6 +1,6 @@
 [package]
 name = "trucalenzer"
-version = "0.5.0-beta"
+version = "0.6.0-beta"
 description = "Local-first academic coordination desktop application"
 authors = ["TruCalenZer"]
 edition = "2021"
