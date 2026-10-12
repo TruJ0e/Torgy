@@ -63,9 +63,6 @@ fn cmd_login(rest: &[String]) -> i32 {
             }
         }
     } else {
-        if !json_output {
-            println!("Signing in this device to Microsoft Copilot (one-time per device).");
-        }
         match copilot_cli::device_code_login(json_output) {
             Ok(session) => match copilot_cli::save_session(&session) {
                 Ok(()) => {

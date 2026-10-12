@@ -22,10 +22,9 @@ use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 const SERVICE_DIR: &str = "com.trujoe.trucalenzer";
-/// Azure CLI first-party client id — the standard trick for device-code CLIs.
+/// Azure CLI first-party client id — kept for token refresh of legacy sessions.
 const CLIENT_ID: &str = "04b07795-8ddb-461a-bbee-02f9e1bf7b46";
 const DEFAULT_SCOPE: &str = "ChatAI.ReadWrite offline_access openid profile";
-const DEVICE_CODE_URL: &str = "https://login.microsoftonline.com/common/oauth2/v2.0/devicecode";
 const TOKEN_URL: &str = "https://login.microsoftonline.com/common/oauth2/v2.0/token";
 const CONVERSATIONS_URL: &str = "https://copilot.microsoft.com/c/api/conversations";
 const CHAT_WS_BASE: &str = "wss://copilot.microsoft.com/c/api/chat";
@@ -124,19 +123,6 @@ fn http_client() -> Result<reqwest::blocking::Client, String> {
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Deserialize)]
-struct DeviceCodeResponse {
-    device_code: String,
-    user_code: String,
-    verification_uri: String,
-    #[serde(default)]
-    verification_uri_complete: Option<String>,
-    expires_in: u64,
-    interval: u64,
-    #[serde(default)]
-    message: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
 struct TokenResponse {
     #[serde(default)]
     access_token: Option<String>,
@@ -150,89 +136,32 @@ struct TokenResponse {
     error_description: Option<String>,
 }
 
-/// Runs the MSAL device-code flow. Prints the user code/URL to stdout and
-/// blocks until the user completes sign-in (or it expires).
-/// If `json_output` is true, the device-code payload is printed as a single
-/// JSON line first (for app-driven sign-in dialogs), human text goes to stderr.
+/// Cookie-based login. Microsoft does not expose the Copilot web API to
+/// third-party OAuth clients, so the device-code flow cannot work. Instead,
+/// the user signs in at copilot.microsoft.com in their browser and provides
+/// the session cookies. Cookies are stored encrypted (DPAPI on Windows,
+/// Keychain on macOS).
+/// If `json_output` is true, instructions are printed as JSON (for app-driven
+/// sign-in dialogs); otherwise human-readable text goes to stdout.
 pub fn device_code_login(json_output: bool) -> Result<Session, String> {
-    let client = http_client()?;
-    let form = [("client_id", CLIENT_ID), ("scope", &scope())];
-    let dc: DeviceCodeResponse = client
-        .post(DEVICE_CODE_URL)
-        .form(&form)
-        .send()
-        .map_err(|e| format!("Device-code request failed: {e}"))?
-        .error_for_status()
-        .map_err(|e| format!("Device-code request rejected: {e}"))?
-        .json()
-        .map_err(|e| format!("Could not parse device-code response: {e}"))?;
-
-    let url = dc
-        .verification_uri_complete
-        .clone()
-        .unwrap_or(dc.verification_uri.clone());
     if json_output {
-        // Machine-readable first line for app-driven dialogs.
         let payload = json!({
-            "verification_uri": url,
-            "user_code": dc.user_code,
-            "expires_in_seconds": dc.expires_in,
+            "method": "cookies",
+            "instructions": "Sign in at https://copilot.microsoft.com in your browser, open DevTools (F12) -> Application -> Cookies, copy the full cookie header value, then run: trucalenzer-copilot login --cookies \"<paste>\"",
         });
         println!("{payload}");
         std::io::stdout().flush().ok();
-    } else {
-        println!("To sign in this device to Microsoft Copilot:");
-        println!("  1. Open {url}");
-        println!("  2. Enter code: {}", dc.user_code);
-        if let Some(msg) = dc.message.as_deref() {
-            eprintln!("{msg}");
-        }
-        std::io::stdout().flush().ok();
+        return Err("Cookie login required. See instructions above.".to_string());
     }
-
-    let deadline = Instant::now() + Duration::from_secs(dc.expires_in.saturating_sub(30));
-    let mut interval = Duration::from_secs(dc.interval.max(5));
-    loop {
-        if Instant::now() >= deadline {
-            return Err("Sign-in expired. Run `trucalenzer-copilot login` again.".to_string());
-        }
-        std::thread::sleep(interval);
-        let form = [
-            ("grant_type", "urn:ietf:params:oauth:grant-type:device_code"),
-            ("device_code", dc.device_code.as_str()),
-            ("client_id", CLIENT_ID),
-        ];
-        let resp: TokenResponse = client
-            .post(TOKEN_URL)
-            .form(&form)
-            .send()
-            .map_err(|e| format!("Token poll failed: {e}"))?
-            .json()
-            .map_err(|e| format!("Could not parse token response: {e}"))?;
-        match resp.error.as_deref() {
-            None => {
-                let access = resp
-                    .access_token
-                    .ok_or_else(|| "Token response had no access token.".to_string())?;
-                let expires_in = resp.expires_in.unwrap_or(3600);
-                return Ok(Session {
-                    access_token: Some(access),
-                    refresh_token: resp.refresh_token,
-                    access_expires_at: Some(now_unix() + expires_in - 60),
-                    cookies: None,
-                });
-            }
-            Some("authorization_pending") => continue,
-            Some("slow_down") => {
-                interval += Duration::from_secs(5);
-                continue;
-            }
-            Some(other) => {
-                let desc = resp.error_description.unwrap_or_default();
-                return Err(format!("Sign-in failed ({other}): {desc}"));
-            }
-        }
-    }
+    println!("Microsoft Copilot sign-in (one-time per device):");
+    println!();
+    println!("  1. Open https://copilot.microsoft.com in your browser and sign in.");
+    println!("  2. Press F12 to open DevTools, go to Application -> Cookies.");
+    println!("  3. Copy the cookie values (or the full Cookie header).");
+    println!("  4. Run: trucalenzer-copilot login --cookies \"<paste here>\"");
+    println!();
+    println!("Your cookies are stored encrypted on this device only.");
+    Err("Cookie login required. Follow the steps above, then re-run with --cookies.".to_string())
 }
 
 fn refresh_access_token(session: &mut Session) -> Result<(), String> {
