@@ -11,6 +11,8 @@ on:
       - 'vite.config.ts'
       - 'tsconfig*.json'
       - '.github/workflows/windows-installer.yml'
+    # Version tags always trigger a full build (path filters don't apply to tags)
+    tags: ['v*']
 
 permissions:
   contents: read

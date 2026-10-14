@@ -1,0 +1,173 @@
+name: release
+
+# Automated release pipeline: tag push (v*) -> installer builds -> sign ->
+# GitHub release -> latest.json update. No manual steps.
+#
+# Security model (minimal exposure):
+# - TAURI_SIGNING_PRIVATE_KEY: GitHub Actions secret (encrypted at rest,
+#   masked in logs, only visible to this workflow's runtime).
+# - RELEASE_PAT: fine-grained PAT with contents:write ONLY on
+#   TruJ0e/TruCalenZer-Releases and TruJ0e/local-website-engine.
+# - Client-side signature verification: the app embeds the public key and
+#   verifies every update before installing. A compromised transport or
+#   endpoint cannot push malicious code without the private key.
+# - No new network endpoints, no new credentials in code.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  # Wait for both installer workflows to complete successfully for this tag.
+  # They trigger on tag push (see their `on.push.tags` config).
+  await-installers:
+    runs-on: ubuntu-latest
+    outputs:
+      windows_run_id: ${{ steps.find.outputs.windows_run_id }}
+      macos_run_id: ${{ steps.find.outputs.macos_run_id }}
+    steps:
+      - name: Wait for installer workflows
+        id: find
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.ref_name }}"
+          echo "Waiting for installer builds for tag $TAG..."
+          for i in $(seq 1 60); do
+            WIN=$(gh run list --workflow windows-installer.yml --limit 20 --json headBranch,headSha,status,conclusion,databaseId \
+              --jq "[.[] | select(.headBranch==\"$TAG\" or .headSha==\"${{ github.sha }}\")][0]")
+            MAC=$(gh run list --workflow macos-installer.yml --limit 20 --json headBranch,headSha,status,conclusion,databaseId \
+              --jq "[.[] | select(.headBranch==\"$TAG\" or .headSha==\"${{ github.sha }}\")][0]")
+            WIN_STATUS=$(echo "$WIN" | jq -r '.status // "missing"')
+            MAC_STATUS=$(echo "$MAC" | jq -r '.status // "missing"')
+            echo "Attempt $i: windows=$WIN_STATUS macos=$MAC_STATUS"
+            if [ "$WIN_STATUS" = "completed" ] && [ "$MAC_STATUS" = "completed" ]; then
+              WIN_CONC=$(echo "$WIN" | jq -r '.conclusion')
+              MAC_CONC=$(echo "$MAC" | jq -r '.conclusion')
+              if [ "$WIN_CONC" = "success" ] && [ "$MAC_CONC" = "success" ]; then
+                echo "windows_run_id=$(echo "$WIN" | jq -r '.databaseId')" >> "$GITHUB_OUTPUT"
+                echo "macos_run_id=$(echo "$MAC" | jq -r '.databaseId')" >> "$GITHUB_OUTPUT"
+                echo "Both installers succeeded."
+                exit 0
+              else
+                echo "::error::Installer build failed (windows=$WIN_CONC macos=$MAC_CONC)"
+                exit 1
+              fi
+            fi
+            sleep 60
+          done
+          echo "::error::Timed out waiting for installer builds"
+          exit 1
+
+  publish:
+    needs: await-installers
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      TAG: ${{ github.ref_name }}
+      VERSION: ${{ github.ref_name }}  # v0.6.3-beta format; stripped below
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: torgy
+
+      - name: Derive version
+        id: ver
+        run: |
+          V="${TAG#v}"
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "Releasing version $V"
+
+      - name: Download Windows artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh run download "${{ needs.await-installers.outputs.windows_run_id }}" \
+            --name torgy-windows-update --dir ./artifacts/windows
+
+      - name: Download macOS artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh run download "${{ needs.await-installers.outputs.macos_run_id }}" \
+            --name trucalenzer-macos-update --dir ./artifacts/macos
+
+      - name: Sign installers
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          # The private key signs; the app verifies with the embedded public key.
+          # Key material never leaves this step: written to a temp file with
+          # 0600 perms, used once, deleted immediately after.
+          pip install --quiet minisign
+          mkdir -p ./signed
+          VERSION="${{ steps.ver.outputs.version }}"
+          # Windows NSIS installer
+          WIN_EXE=$(ls ./artifacts/windows/*-setup.exe | head -1)
+          cp "$WIN_EXE" "./signed/TruCalenZer_${VERSION}_x64-setup.exe"
+          # Machine agent (if present in artifacts)
+          AGENT=$(ls ./artifacts/windows/*agent*.exe 2>/dev/null | head -1 || true)
+          if [ -n "$AGENT" ]; then
+            cp "$AGENT" "./signed/TruCalenZer_Machine_Agent_${VERSION}_x64-setup.exe"
+          fi
+          # macOS DMG
+          DMG=$(ls ./artifacts/macos/*.dmg | head -1)
+          cp "$DMG" "./signed/TruCalenZer_${VERSION}_aarch64.dmg"
+          # Write keys to temp files (0600)
+          umask 077
+          echo "$TAURI_SIGNING_PRIVATE_KEY" > /tmp/updater-key
+          python3 -c "
+          import json, base64
+          conf = json.load(open('./torgy/src-tauri/tauri.conf.json'))
+          pub = conf['plugins']['updater']['pubkey']
+          open('/tmp/updater-key.pub','w').write(base64.b64decode(pub).decode('ascii'))
+          "
+          # Sign each binary; .sig files sit alongside
+          for f in ./signed/*.exe ./signed/*.dmg; do
+            [ -e "$f" ] || continue
+            python3 ./torgy/scripts/sign-tauri-update.py "$f" \
+              --private-key /tmp/updater-key \
+              --public-key /tmp/updater-key.pub
+          done
+          # Destroy key material
+          shred -u /tmp/updater-key /tmp/updater-key.pub 2>/dev/null || rm -f /tmp/updater-key /tmp/updater-key.pub
+          ls -la ./signed/
+
+      - name: Generate latest.json
+        id: latest
+        run: |
+          VERSION="${{ steps.ver.outputs.version }}"
+          python3 ./torgy/scripts/generate-latest-json.py "$VERSION" ./signed > ./signed/latest.json
+          cat ./signed/latest.json
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+        run: |
+          VERSION="${{ steps.ver.outputs.version }}"
+          # Create release in the releases repo
+          gh release create "$TAG" ./signed/* \
+            --repo TruJ0e/TruCalenZer-Releases \
+            --title "TruCalenZer $VERSION" \
+            --notes "Automated release of TruCalenZer $VERSION."
+
+      - name: Update website latest.json
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+        run: |
+          VERSION="${{ steps.ver.outputs.version }}"
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/TruJ0e/local-website-engine.git" website
+          cd website
+          git config user.name "TruCalenZer Release Bot"
+          git config user.email "release@trujoedigital.com"
+          cp ../signed/latest.json public/trucalenzer/latest.json
+          # Update version references on the download page
+          sed -i "s/v[0-9]*\.[0-9]*\.[0-9]*-beta/v${VERSION}/g" app/trucalenzer/page.jsx 2>/dev/null || true
+          git add -A
+          git commit -m "Update TruCalenZer to ${VERSION} (automated release)" || echo "No changes"
+          git push origin main
