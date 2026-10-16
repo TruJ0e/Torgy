@@ -1,0 +1,1 @@
+{"main-local-only":{"identifier":"main-local-only","description":"Local Torgy UI capability. No remote URL is granted Tauri IPC access.","local":true,"windows":["main"],"permissions":["core:default","updater:default"]}}

@@ -1,0 +1,6 @@
+BRANCH=fix/calendar-usability-split
+SHA=c67a7b42f33417778d3c20578f555f8c9bde25e9
+STATUS
+## fix/calendar-usability-split...origin/fix/calendar-usability-split
+?? .taos_ping.txt
+?? .taos_status.txt
