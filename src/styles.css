@@ -532,7 +532,7 @@ button.compact { min-height: 36px; padding: 6px 11px; }
 .time-days small{font-size:10px;color:#989083}.time-days strong{font-size:17px}
 .all-day-row{border-top:1px solid #f4eee2;border-bottom:1px solid #f4eee2;min-height:36px}
 .all-day-row>span{display:grid;place-items:center;font-size:9px;color:#989083;letter-spacing:.05em}
-.all-day-days>div{border-right:1px solid #ece4d6;padding:4px;min-width:0}
+.all-day-days>div{border-right:1px solid #ece4d6;padding:4px 3px;min-width:0}
 .all-day-days>div:last-child{border-right:0}
 .all-day-chip{display:block;width:100%;border:1px dashed #cfc5b9;background:#f6f0e8;border-radius:7px;padding:4px 6px;text-align:left;min-height:auto;margin-bottom:3px;overflow:hidden}
 .all-day-chip.scheduled{border-style:solid;border-left:3px solid #7e7365}.all-day-chip strong,.all-day-chip small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.all-day-chip strong{font-size:10px}.all-day-chip small{font-size:9px;color:#776f67}
