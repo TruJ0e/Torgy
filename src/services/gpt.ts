@@ -26,6 +26,67 @@ function responseText(value: BridgeResult) {
   return typeof value.response === 'string' ? value.response.trim() : '';
 }
 
+function assistantCount(value: BridgeResult) {
+  return typeof value.assistantCount === 'number' ? value.assistantCount : 0;
+}
+
+type ResponseReader = () => Promise<BridgeResult>;
+type Sleeper = (ms: number) => Promise<void>;
+
+const sleep: Sleeper = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
+
+/**
+ * ChatGPT streams its reply, and the stream can pause for over a second
+ * mid-answer, so text stability alone returns truncated JSON. Wait for a new
+ * assistant turn, then for the bridge to report it complete (completion flag
+ * set and no stop button) with the text unchanged across two reads.
+ */
+export async function waitForCompletedResponse(
+  baseline: string,
+  baselineCount: number,
+  read: ResponseReader = () => invoke<BridgeResult>('gpt_read_latest_response'),
+  wait: Sleeper = sleep,
+  timeoutMs = 120_000,
+  intervalMs = 1_000,
+) {
+  let last = '';
+  let stable = 0;
+  let generating = false;
+  for (let elapsed = 0; elapsed < timeoutMs; elapsed += intervalMs) {
+    await wait(intervalMs);
+    const result = await read();
+    const text = responseText(result);
+    generating = result.generating === true;
+    const isNew = assistantCount(result) > baselineCount || (text !== '' && text !== baseline);
+    if (!text || !isNew) continue;
+    stable = text === last ? stable + 1 : 0;
+    last = text;
+    // Older bridge results without the flag fall back to plain stability.
+    const complete = typeof result.complete === 'boolean' ? result.complete : !generating;
+    if (complete && stable >= 1) return last;
+  }
+  if (last && generating) {
+    throw new Error('ChatGPT was still writing its reply when the local bridge timed out. Retry once ChatGPT finishes.');
+  }
+  throw new Error('ChatGPT did not produce a detectable response before the local bridge timed out. Use Settings → ChatGPT bridge → Test to inspect the session.');
+}
+
+/** A freshly opened window is still loading chatgpt.com; wait for the composer. */
+async function waitForComposer(timeoutMs = 20_000) {
+  let lastError = '';
+  for (let elapsed = 0; elapsed < timeoutMs; elapsed += 500) {
+    try {
+      const probe = await probeGptWindow();
+      if (probe.composerPresent === true) return;
+    } catch (error) {
+      // Navigation in progress, or sign-in on a provider page: keep waiting.
+      lastError = error instanceof Error ? error.message : String(error);
+    }
+    await sleep(500);
+  }
+  throw new Error(lastError || 'The ChatGPT composer did not appear. Sign in to the ChatGPT window if needed, then retry.');
+}
+
 function extractJsonObject(text: string) {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim();
   const source = fenced ?? text;
@@ -161,33 +222,18 @@ export class NativeGptInfoDumpService implements InfoDumpService {
     if (!isTauriRuntime()) throw new Error('The ChatGPT bridge is available only in the installed TruCalenZer desktop build.');
 
     await openGptWindow();
+    await waitForComposer();
 
     const before = await invoke<BridgeResult>('gpt_read_latest_response');
     const baseline = responseText(before);
+    const baselineCount = assistantCount(before);
     const submitted = await invoke<BridgeResult>('gpt_submit_prompt', { prompt: buildPrompt(rawText, context) });
     if (submitted.ok !== true) {
       const error = typeof submitted.error === 'string' ? submitted.error : 'ChatGPT input controls were not detected.';
       throw new Error(`${error} Sign in to the ChatGPT window if needed, then retry.`);
     }
 
-    const timeoutAt = Date.now() + 90_000;
-    let last = '';
-    let stable = 0;
-    while (Date.now() < timeoutAt) {
-      await new Promise((resolve) => window.setTimeout(resolve, 1_000));
-      const result = await invoke<BridgeResult>('gpt_read_latest_response');
-      const text = responseText(result);
-      if (!text || text === baseline) continue;
-      if (text === last) stable += 1;
-      else stable = 0;
-      last = text;
-      if (stable >= 2) break;
-    }
-
-    if (!last || last === baseline) {
-      throw new Error('ChatGPT did not produce a detectable response before the local bridge timed out. Use Settings → ChatGPT bridge → Test to inspect the session.');
-    }
-
+    const last = await waitForCompletedResponse(baseline, baselineCount);
     const parsed = extractJsonObject(last);
     return {
       provider: 'gpt',
