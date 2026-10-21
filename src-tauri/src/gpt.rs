@@ -44,9 +44,9 @@ fn boundary_error(current: &Url) -> Option<String> {
 }
 
 fn gpt_window(app: &AppHandle) -> Result<WebviewWindow, String> {
-    let window = app.get_webview_window("gpt").ok_or_else(|| {
-        "ChatGPT is not open. Open the ChatGPT window first.".to_string()
-    })?;
+    let window = app
+        .get_webview_window("gpt")
+        .ok_or_else(|| "ChatGPT is not open. Open the ChatGPT window first.".to_string())?;
     let current = window
         .url()
         .map_err(|e| format!("Could not verify the current ChatGPT URL: {e}"))?;
@@ -366,7 +366,10 @@ mod tests {
             "http://chatgpt.com/",
         ] {
             let error = err_for(url).unwrap();
-            assert!(error.contains("outside the approved OpenAI HTTPS boundary"), "{url}");
+            assert!(
+                error.contains("outside the approved OpenAI HTTPS boundary"),
+                "{url}"
+            );
         }
     }
 }
