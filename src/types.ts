@@ -67,7 +67,7 @@ export interface InfoDumpItem {
 export interface InfoDumpResult {
   items: InfoDumpItem[];
   rawText: string;
-  provider: 'copilot' | 'development-fallback';
+  provider: 'copilot' | 'gpt' | 'development-fallback';
 }
 
 export interface SyncEnvelope {
@@ -150,6 +150,7 @@ export interface AppSettings {
   selectedStudentId: string;
   copilotEnabled: boolean;
   copilotUrl: string;
+  gptEnabled: boolean;
   outlookEnabled: boolean;
   outlookTenantId: string;
   outlookClientId: string;

@@ -1,6 +1,7 @@
 mod canvas;
 mod copilot;
 pub mod copilot_cli;
+mod gpt;
 mod outlook;
 mod platform;
 mod speech;
@@ -130,6 +131,33 @@ async fn copilot_read_latest_response(app: AppHandle) -> Result<Value, String> {
 #[tauri::command]
 fn copilot_status(app: AppHandle) -> Value {
     copilot::status(&app)
+}
+
+#[tauri::command]
+async fn open_gpt_window(app: AppHandle) -> Result<(), String> {
+    gpt::open_window(&app)
+}
+#[tauri::command]
+async fn gpt_probe(app: AppHandle) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || gpt::probe(&app))
+        .await
+        .map_err(|e| format!("ChatGPT probe worker failed: {e}"))?
+}
+#[tauri::command]
+async fn gpt_submit_prompt(app: AppHandle, prompt: String) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || gpt::submit_prompt(&app, &prompt))
+        .await
+        .map_err(|e| format!("ChatGPT submit worker failed: {e}"))?
+}
+#[tauri::command]
+async fn gpt_read_latest_response(app: AppHandle) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || gpt::read_latest_response(&app))
+        .await
+        .map_err(|e| format!("ChatGPT read worker failed: {e}"))?
+}
+#[tauri::command]
+fn gpt_status(app: AppHandle) -> Value {
+    gpt::status(&app)
 }
 
 /// Runs the per-device `trucalenzer-copilot` sidecar CLI for one organize turn.
@@ -540,6 +568,11 @@ pub fn run() {
             copilot_submit_prompt,
             copilot_read_latest_response,
             copilot_status,
+            open_gpt_window,
+            gpt_probe,
+            gpt_submit_prompt,
+            gpt_read_latest_response,
+            gpt_status,
             copilot_sidecar_status,
             copilot_sidecar_login_begin,
             copilot_sidecar_organize,

@@ -52,7 +52,7 @@ export function createInitialSnapshot(): AppSnapshot {
     settings: {
       firstRunComplete: false,
       role: 'coordinator', coordinatorLabel: 'Academic Coordinator', selectedStudentId: 'all',
-      copilotEnabled: false, copilotUrl: '',
+      copilotEnabled: false, copilotUrl: '', gptEnabled: false,
       outlookEnabled: false, outlookTenantId: '', outlookClientId: '', outlookAutoSyncSeconds: 60,
       syncEnabled: false, syncTransportMode: 'disabled', syncSharePath: '', syncAutoSeconds: 20,
       academicImportMode: 'manual', canvasBaseUrl: '',
