@@ -125,6 +125,7 @@ pub fn open_window(app: &AppHandle) -> Result<(), String> {
     WebviewWindowBuilder::new(app, "gpt", WebviewUrl::External(parsed))
         .title("ChatGPT — TruCalenZer bridge")
         .data_directory(profile_dir)
+        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
         .general_autofill_enabled(false)
         .inner_size(1100.0, 820.0)
         .min_inner_size(760.0, 560.0)
@@ -350,6 +351,8 @@ mod tests {
     #[test]
     fn sign_in_providers_report_sign_in_in_progress() {
         let error = err_for("https://accounts.google.com/o/oauth2/auth").unwrap();
+        assert!(error.contains("sign-in is still in progress"));
+        let error = err_for("https://login.live.com/oauth20_authorize.srf").unwrap();
         assert!(error.contains("sign-in is still in progress"));
     }
 

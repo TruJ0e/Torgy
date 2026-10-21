@@ -4422,7 +4422,7 @@ dependencies = [
 
 [[package]]
 name = "trucalenzer"
-version = "0.5.0-beta"
+version = "0.6.2-beta"
 dependencies = [
  "base64 0.23.1",
  "chacha20poly1305",
