@@ -5,11 +5,15 @@
 //!
 //!   1. `POST https://copilot.microsoft.com/c/api/conversations` -> conversation id
 //!   2. `wss://copilot.microsoft.com/c/api/chat?api-version=2&clientSessionId=<uuid>`
-//!      with an MSAL access token (scope `ChatAI.ReadWrite`) as `accessToken`.
+//!      with an MSAL access token (Sydney scope) as `accessToken`.
 //!   3. Event-JSON frames: `send` -> `appendText`* (incremental deltas) -> `done`.
 //!
-//! Auth is per-device via MSAL device-code flow (`login`), tokens stored in a
-//! 0600 session file under the platform app-data dir. No paid API involved.
+//! Auth is per-device: the user signs in at copilot.microsoft.com in their
+//! browser, and the browser's MSAL refresh token is seeded once via
+//! `login --refresh-token` (see the extractor note in device_code_login).
+//! Tokens are then refreshed via the standard MSAL refresh_token grant and
+//! stored in a 0600 session file under the platform app-data dir.
+//! No paid API involved.
 
 use std::fs;
 use std::io::Write;
@@ -22,9 +26,14 @@ use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 const SERVICE_DIR: &str = "com.trujoe.trucalenzer";
-/// Azure CLI first-party client id — kept for token refresh of legacy sessions.
-const CLIENT_ID: &str = "04b07795-8ddb-461a-bbee-02f9e1bf7b46";
-const DEFAULT_SCOPE: &str = "ChatAI.ReadWrite offline_access openid profile";
+/// Copilot web app's own first-party client id, observed in the browser's
+/// MSAL token request (POST login.microsoftonline.com/.../oauth2/v2.0/token,
+/// grant_type=refresh_token). The previous Azure-CLI client id cannot mint
+/// tokens for the Copilot web API, so refresh with it always fails.
+const CLIENT_ID: &str = "c0ab8ce9-e9a0-42e7-b064-33d422df41f1";
+/// Scope the Copilot web app requests: Sydney backend default + identity.
+const DEFAULT_SCOPE: &str =
+    "https://substrate.office.com/sydney/v2/.default openid profile offline_access";
 const TOKEN_URL: &str = "https://login.microsoftonline.com/common/oauth2/v2.0/token";
 const CONVERSATIONS_URL: &str = "https://copilot.microsoft.com/c/api/conversations";
 const CHAT_WS_BASE: &str = "wss://copilot.microsoft.com/c/api/chat";
@@ -110,6 +119,10 @@ fn scope() -> String {
     std::env::var("TRUCALENZER_COPILOT_SCOPE").unwrap_or_else(|_| DEFAULT_SCOPE.to_string())
 }
 
+fn client_id() -> String {
+    std::env::var("TRUCALENZER_COPILOT_CLIENT_ID").unwrap_or_else(|_| CLIENT_ID.to_string())
+}
+
 fn http_client() -> Result<reqwest::blocking::Client, String> {
     reqwest::blocking::Client::builder()
         .timeout(HTTP_TIMEOUT)
@@ -138,30 +151,41 @@ struct TokenResponse {
 
 /// Cookie-based login. Microsoft does not expose the Copilot web API to
 /// third-party OAuth clients, so the device-code flow cannot work. Instead,
-/// the user signs in at copilot.microsoft.com in their browser and provides
-/// the session cookies. Cookies are stored encrypted (DPAPI on Windows,
-/// Keychain on macOS).
+/// the user signs in at copilot.microsoft.com in their browser and the
+/// browser's MSAL refresh token is seeded once:
+///   1. Sign in at https://copilot.microsoft.com in the browser.
+///   2. Extract the MSAL refresh token from the browser's local storage
+///      (key containing `refreshtoken` for the Copilot client id) and run:
+///      `trucalenzer-copilot login --refresh-token "<token>"`.
+///      The token value is never printed; it is stored in the session file
+///      and used only for the MSAL refresh_token grant.
+/// Cookies (for the conversation endpoint) can still be stored with
+/// `login --cookies "<header>"`. Tokens are stored in the session file
+/// on this device only.
 /// If `json_output` is true, instructions are printed as JSON (for app-driven
 /// sign-in dialogs); otherwise human-readable text goes to stdout.
 pub fn device_code_login(json_output: bool) -> Result<Session, String> {
     if json_output {
         let payload = json!({
-            "method": "cookies",
-            "instructions": "Sign in at https://copilot.microsoft.com in your browser, open DevTools (F12) -> Application -> Cookies, copy the full cookie header value, then run: trucalenzer-copilot login --cookies \"<paste>\"",
+            "method": "refresh-token",
+            "instructions": "Sign in at https://copilot.microsoft.com in your browser, then run: trucalenzer-copilot login --refresh-token \"<MSAL refresh token from the browser's local storage>\" (cookies can also be stored with login --cookies).",
         });
         println!("{payload}");
         std::io::stdout().flush().ok();
-        return Err("Cookie login required. See instructions above.".to_string());
+        return Err("Refresh-token login required. See instructions above.".to_string());
     }
     println!("Microsoft Copilot sign-in (one-time per device):");
     println!();
     println!("  1. Open https://copilot.microsoft.com in your browser and sign in.");
-    println!("  2. Press F12 to open DevTools, go to Application -> Cookies.");
-    println!("  3. Copy the cookie values (or the full Cookie header).");
-    println!("  4. Run: trucalenzer-copilot login --cookies \"<paste here>\"");
+    println!("  2. Copy the MSAL refresh token from the browser's local storage");
+    println!("     (DevTools -> Application -> Local Storage -> copilot.com,");
+    println!("     key containing `refreshtoken`).");
+    println!("  3. Run: trucalenzer-copilot login --refresh-token \"<paste here>\"");
+    println!("  4. Optionally also store cookies:");
+    println!("     trucalenzer-copilot login --cookies \"<paste header here>\"");
     println!();
-    println!("Your cookies are stored encrypted on this device only.");
-    Err("Cookie login required. Follow the steps above, then re-run with --cookies.".to_string())
+    println!("Your tokens are stored on this device only.");
+    Err("Refresh-token login required. Follow the steps above, then re-run with --refresh-token.".to_string())
 }
 
 fn refresh_access_token(session: &mut Session) -> Result<(), String> {
@@ -171,12 +195,13 @@ fn refresh_access_token(session: &mut Session) -> Result<(), String> {
     let client = http_client()?;
     // `scope()` returns an owned String; bind it so the borrow lives long enough.
     let scope_owned = scope();
+    let client_owned = client_id();
     let resp: TokenResponse = client
         .post(TOKEN_URL)
         .form(&[
             ("grant_type", "refresh_token"),
             ("refresh_token", refresh.as_str()),
-            ("client_id", CLIENT_ID),
+            ("client_id", client_owned.as_str()),
             ("scope", scope_owned.as_str()),
         ])
         .send()

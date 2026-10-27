@@ -4,8 +4,10 @@
 //! device owner's Microsoft sign-in. No paid API, no browser, no DOM scraping.
 //!
 //! Commands:
-//!   login [--cookies "<header>"]  Sign in this device (MSAL device-code flow,
-//!                                 or store pasted cookies directly).
+//!   login [--cookies "<header>"]  Store pasted session cookies directly.
+//!   login --refresh-token "<tok>" Seed the browser's MSAL refresh token
+//!                                 (the working auth path: refresh grant).
+//!   login [--json]                Print sign-in instructions as JSON.
 //!   status                        Print JSON auth status.
 //!   ask --text "..."              One-shot chat; prints the reply text.
 //!   organize                      Read the full prompt from stdin, print JSON:
@@ -20,6 +22,7 @@ use trucalenzer_lib::copilot_cli;
 fn usage() -> ! {
     eprintln!("usage:");
     eprintln!("  trucalenzer-copilot login [--json] [--cookies \"<cookie header>\"]");
+    eprintln!("  trucalenzer-copilot login --refresh-token \"<MSAL refresh token>\"");
     eprintln!("  trucalenzer-copilot status");
     eprintln!("  trucalenzer-copilot ask --text \"...\"");
     eprintln!("  trucalenzer-copilot organize   # prompt via stdin");
@@ -43,8 +46,32 @@ fn main() {
 
 fn cmd_login(rest: &[String]) -> i32 {
     let json_output = rest.iter().any(|a| a == "--json");
-    // `--cookies` escape hatch: store pasted cookies without any OAuth dance.
-    if let Some(i) = rest.iter().position(|a| a == "--cookies") {
+    // `--refresh-token` seed: store the browser's MSAL refresh token so the
+    // standard refresh_token grant can mint access tokens. The value is
+    // never printed.
+    if let Some(i) = rest.iter().position(|a| a == "--refresh-token") {
+        let value = rest.get(i + 1).cloned().unwrap_or_default();
+        if value.trim().is_empty() {
+            eprintln!("--refresh-token needs a value");
+            return 1;
+        }
+        let mut session = copilot_cli::load_session().unwrap_or_default();
+        session.refresh_token = Some(value.trim().to_string());
+        // Drop any stale access token: the next call re-mints from the new
+        // refresh token.
+        session.access_token = None;
+        session.access_expires_at = None;
+        match copilot_cli::save_session(&session) {
+            Ok(()) => {
+                println!("Refresh token stored for this device.");
+                0
+            }
+            Err(e) => {
+                eprintln!("Could not store refresh token: {e}");
+                1
+            }
+        }
+    } else if let Some(i) = rest.iter().position(|a| a == "--cookies") {
         let value = rest.get(i + 1).cloned().unwrap_or_default();
         if value.trim().is_empty() {
             eprintln!("--cookies needs a value");
