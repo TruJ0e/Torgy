@@ -25,6 +25,20 @@ export async function copilotStatus() {
   return invoke<{ open: boolean; url: string | null }>('copilot_status');
 }
 
+/** A new embedded window needs time to navigate before its composer is usable. */
+async function waitForComposer() {
+  for (let elapsed = 0; elapsed < 20_000; elapsed += 500) {
+    try {
+      const probe = await probeCopilotWindow();
+      if (Array.isArray(probe.editables) && probe.editables.length > 0) return;
+    } catch {
+      // Navigation or Microsoft's sign-in page may temporarily block the probe.
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, 500));
+  }
+  throw new Error('The Copilot composer did not appear. Finish signing in on Microsoft’s page inside the Copilot window, then retry Organize.');
+}
+
 function responseText(value: BridgeResult) {
   return typeof value.response === 'string' ? value.response.trim() : '';
 }
@@ -159,33 +173,12 @@ export class NativeCopilotInfoDumpService implements InfoDumpService {
   async organize(rawText: string, context?: InfoDumpContext): Promise<InfoDumpResult> {
     if (!isTauriRuntime()) throw new Error('The Copilot bridge is available only in the installed TruCalenZer desktop build.');
 
-    // Preferred path: the per-device `trucalenzer-copilot` sidecar CLI talks
-    // directly to Copilot's web API — no WebView, no DOM scraping.
-    try {
-      const result = await invoke<{ provider?: string; responseText?: string }>(
-        'copilot_sidecar_organize',
-        { prompt: buildPrompt(rawText, context) },
-      );
-      const text = typeof result.responseText === 'string' ? result.responseText : '';
-      if (!text.trim()) throw new Error('Copilot sidecar returned an empty response.');
-      const parsed = extractJsonObject(text);
-      return { provider: 'copilot', rawText, items: normalizeItems(parsed.items, context) };
-    } catch (sidecarError) {
-      const message = sidecarError instanceof Error ? sidecarError.message : String(sidecarError);
-      // Auth problems need the user to sign the device in — say so plainly.
-      if (message.startsWith('SIDECAR_AUTH')) {
-        throw new Error(
-          'This device is not signed in to Copilot. Run `trucalenzer-copilot login` once (it is installed next to TruCalenZer), then retry.',
-        );
-      }
-      // Only fall back to the WebView bridge when the sidecar binary is absent.
-      if (!message.startsWith('SIDECAR_MISSING')) throw sidecarError instanceof Error ? sidecarError : new Error(message);
-    }
-
-    // Fallback: legacy WebView bridge (sidecar not installed yet).
+    // The embedded window owns sign-in and its persistent Microsoft session.
+    // Organize never calls the sidecar or handles credentials.
     if (!this.url.trim()) throw new Error('Add the university-approved Microsoft Copilot URL in Settings first.');
 
     await openCopilotWindow(this.url);
+    await waitForComposer();
 
     const before = await invoke<BridgeResult>('copilot_read_latest_response');
     const baseline = responseText(before);
