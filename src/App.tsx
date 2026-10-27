@@ -80,13 +80,13 @@ export default function App(){
   const [editingTask,setEditingTask]=useState<{task:Task;occurrenceDay:string|null}|null>(null); const [editingStudent,setEditingStudent]=useState<Student|'new'|null>(null);
   const [pendingMove,setPendingMove]=useState<{id:string;iso:string;occurrenceDay:string;dueDrag?:boolean}|null>(null);
   const [searchOpen,setSearchOpen]=useState(false); const [searchQuery,setSearchQuery]=useState('');
-  const [copilotLogin,setCopilotLogin]=useState<{verification_uri:string;user_code:string;expires_in_seconds:number}|null>(null);
+  const [copilotLogin,setCopilotLogin]=useState<{verification_uri?:string;user_code?:string;expires_in_seconds?:number;method?:string;instructions?:string}|null>(null);
   const [copilotLoginDone,setCopilotLoginDone]=useState(false);
   const copilotPrompted=useRef(false);
 
   async function beginCopilotLogin(){
     try{
-      const payload=await invoke<{verification_uri:string;user_code:string;expires_in_seconds:number}>('copilot_sidecar_login_begin');
+      const payload=await invoke<{verification_uri?:string;user_code?:string;expires_in_seconds?:number;method?:string;instructions?:string}>('copilot_sidecar_login_begin');
       setCopilotLoginDone(false);
       setCopilotLogin(payload);
     }catch(e){setNotice(e instanceof Error?e.message:'Could not start Copilot sign-in.')}
@@ -494,8 +494,12 @@ function QuickCapture({onAdd}:{onAdd:(title:string)=>void}){
   function submit(){if(!text.trim())return;onAdd(text);setText('');}
   return <div className="quick-capture"><Plus size={16}/><input value={text} onChange={(e)=>setText(e.target.value)} onKeyDown={(e)=>{if(e.key==='Enter')submit();}} placeholder="Add a task… (Enter to add, no date)" aria-label="Add a task quickly"/>{text.trim()&&<button className="secondary compact" onClick={submit}>Add</button>}</div>;
 }
-function CopilotLoginDialog({payload,onDone,onClose}:{payload:{verification_uri:string;user_code:string;expires_in_seconds:number};onDone:()=>void;onClose:()=>void}){
+function CopilotLoginDialog({payload,onDone,onClose}:{payload:{verification_uri?:string;user_code?:string;expires_in_seconds?:number;method?:string;instructions?:string};onDone:()=>void;onClose:()=>void}){
   const [copied,setCopied]=useState(false);
+  const [pastedToken,setPastedToken]=useState('');
+  const [saving,setSaving]=useState(false);
+  const [saveError,setSaveError]=useState('');
+  const [saved,setSaved]=useState(false);
   useEffect(()=>{
     let cancelled=false;
     const timer=setInterval(async()=>{
@@ -507,12 +511,42 @@ function CopilotLoginDialog({payload,onDone,onClose}:{payload:{verification_uri:
     return ()=>{cancelled=true;clearInterval(timer)};
   },[]);
   async function openSignIn(){
+    if(!payload.verification_uri)return;
     try{await invoke('open_external_url',{url:payload.verification_uri});}
     catch{/* browser open failed; user can copy the URL manually */}
   }
   async function copyCode(){
+    if(!payload.user_code)return;
     try{await navigator.clipboard.writeText(payload.user_code);setCopied(true);setTimeout(()=>setCopied(false),2000);}
     catch{/* clipboard unavailable */}
+  }
+  async function savePastedToken(){
+    if(!pastedToken.trim())return;
+    setSaving(true);setSaveError('');
+    try{
+      await invoke('copilot_sidecar_login_refresh_token',{token:pastedToken.trim()});
+      setPastedToken('');
+      setSaved(true);
+    }catch{setSaveError('Could not save that token. Check it and try again.');}
+    setSaving(false);
+  }
+  if(payload.method==='refresh-token'||!payload.verification_uri){
+    return <div className="dialog-backdrop"><section className="dialog" role="dialog" aria-label="Sign in to Microsoft Copilot">
+      <header><div><h2>Sign in to Microsoft Copilot</h2><p className="muted-copy">One-time setup for this device. After this, Info Dump uses Copilot directly.</p></div></header>
+      <ol className="muted-copy" style={{margin:'0 0 12px 18px',padding:0}}>
+        <li>Sign in at <strong>copilot.microsoft.com</strong> in your browser.</li>
+        <li>Open DevTools (F12) → Application → Local Storage → copilot.com, and copy the MSAL refresh token.</li>
+        <li>Paste it below. It is stored on this device only and never shown again.</li>
+      </ol>
+      {payload.instructions&&<p className="muted-copy">{payload.instructions}</p>}
+      <div style={{display:'flex',gap:8,marginBottom:12}}>
+        <input type="password" value={pastedToken} onChange={(e)=>setPastedToken(e.target.value)} onKeyDown={(e)=>{if(e.key==='Enter')savePastedToken();}} placeholder="Paste MSAL refresh token" aria-label="MSAL refresh token" style={{flex:1}}/>
+        <button className="primary compact" onClick={savePastedToken} disabled={saving||!pastedToken.trim()}>{saving?'Saving…':'Save'}</button>
+      </div>
+      {saveError&&<p className="muted-copy" role="alert">{saveError}</p>}
+      {saved&&<p className="muted-copy">Saved — this page is watching and will confirm automatically when sign-in verifies.</p>}
+      <footer><button className="secondary" onClick={onClose}>Later</button><span/><span/></footer>
+    </section></div>;
   }
   return <div className="dialog-backdrop"><section className="dialog" role="dialog" aria-label="Sign in to Microsoft Copilot">
     <header><div><h2>Sign in to Microsoft Copilot</h2><p className="muted-copy">One-time setup for this device. After this, Info Dump uses Copilot directly.</p></div></header>

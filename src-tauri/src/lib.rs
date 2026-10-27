@@ -208,9 +208,13 @@ fn open_external_url(url: String) -> Result<(), String> {
 }
 
 /// Starts a detached `trucalenzer-copilot login --json` and returns the
-/// device-code payload (`verification_uri`, `user_code`, `expires_in_seconds`).
-/// The login process keeps polling in the background; the frontend polls
-/// `copilot_sidecar_status` to detect completion.
+/// sign-in payload as JSON. The current sidecar returns
+/// `{method:"refresh-token", instructions}` (the working flow: the browser's
+/// MSAL refresh token is pasted into the dialog and stored via
+/// `copilot_sidecar_login_refresh_token`); older sidecars returned a
+/// device-code payload (`verification_uri`, `user_code`). The frontend
+/// renders whichever shape arrives and polls `copilot_sidecar_status` to
+/// detect completion.
 #[tauri::command]
 async fn copilot_sidecar_login_begin() -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(|| {
@@ -263,6 +267,49 @@ async fn copilot_sidecar_login_begin() -> Result<Value, String> {
                 first_line.trim()
             )
         })
+    })
+    .await
+    .map_err(|e| format!("Copilot sidecar worker failed: {e}"))?
+}
+
+/// Stores a pasted MSAL refresh token via
+/// `trucalenzer-copilot login --refresh-token`. The token value is passed
+/// only to the sidecar process and is never logged, echoed, or included in
+/// any error message here.
+#[tauri::command]
+async fn copilot_sidecar_login_refresh_token(token: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let exe = std::env::current_exe()
+            .map_err(|e| format!("SIDECAR_MISSING: could not locate app dir: {e}"))?;
+        let dir = exe
+            .parent()
+            .ok_or_else(|| "SIDECAR_MISSING: app exe has no parent dir".to_string())?;
+        let bin_name = if cfg!(windows) {
+            "trucalenzer-copilot.exe"
+        } else {
+            "trucalenzer-copilot"
+        };
+        let bin = dir.join(bin_name);
+        if !bin.exists() {
+            return Err(format!(
+                "SIDECAR_MISSING: {} not found next to the app",
+                bin.display()
+            ));
+        }
+        let status = std::process::Command::new(&bin)
+            .arg("login")
+            .arg("--refresh-token")
+            .arg(&token)
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .map_err(|e| format!("Could not launch Copilot sidecar: {e}"))?;
+        if status.success() {
+            Ok(())
+        } else {
+            Err("Copilot sign-in failed. The token was not accepted.".to_string())
+        }
     })
     .await
     .map_err(|e| format!("Copilot sidecar worker failed: {e}"))?
@@ -575,6 +622,7 @@ pub fn run() {
             gpt_status,
             copilot_sidecar_status,
             copilot_sidecar_login_begin,
+            copilot_sidecar_login_refresh_token,
             copilot_sidecar_organize,
             sync_identity,
             sync_seal_envelope,
