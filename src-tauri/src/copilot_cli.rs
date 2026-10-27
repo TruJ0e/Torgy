@@ -26,14 +26,21 @@ use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 const SERVICE_DIR: &str = "com.trujoe.trucalenzer";
-/// Copilot web app's own first-party client id, observed in the browser's
-/// MSAL token request (POST login.microsoftonline.com/.../oauth2/v2.0/token,
-/// grant_type=refresh_token). The previous Azure-CLI client id cannot mint
-/// tokens for the Copilot web API, so refresh with it always fails.
-const CLIENT_ID: &str = "c0ab8ce9-e9a0-42e7-b064-33d422df41f1";
-/// Scope the Copilot web app requests: Sydney backend default + identity.
+/// Copilot web app's own first-party MSAL client id. Taken verbatim from the
+/// live copilot.microsoft.com bundle (`entry-ssr-*.js`): `cce.auth.clientId`.
+/// Refresh tokens are bound to the client that minted them, so the token the
+/// user extracts from the signed-in browser can ONLY be redeemed by this id.
+/// The previous value (c0ab8ce9-…, an unrelated client) could never redeem a
+/// browser-minted Copilot refresh token, so every refresh failed.
+const CLIENT_ID: &str = "14638111-3389-403d-b206-a6a71d9f8f16";
+/// Scope the Copilot web app requests. From the same bundle, `Qu()` returns
+/// `"140e65af-45d1-4427-bf08-3e7295db6836/ChatAI.ReadWrite"` and MSAL appends
+/// the identity scopes. 140e65af-… is the Copilot API's app-ID-URI resource.
 const DEFAULT_SCOPE: &str =
-    "https://substrate.office.com/sydney/v2/.default openid profile offline_access";
+    "140e65af-45d1-4427-bf08-3e7295db6836/ChatAI.ReadWrite offline_access openid profile";
+/// MSAL token endpoint. The web app configures authority `.../common` (its
+/// interactive leg uses `/consumers`; both redeem an MSA refresh token). Kept
+/// overridable via TRUCALENZER_COPILOT_TOKEN_URL for tenant-specific builds.
 const TOKEN_URL: &str = "https://login.microsoftonline.com/common/oauth2/v2.0/token";
 const CONVERSATIONS_URL: &str = "https://copilot.microsoft.com/c/api/conversations";
 const CHAT_WS_BASE: &str = "wss://copilot.microsoft.com/c/api/chat";
@@ -123,6 +130,10 @@ fn client_id() -> String {
     std::env::var("TRUCALENZER_COPILOT_CLIENT_ID").unwrap_or_else(|_| CLIENT_ID.to_string())
 }
 
+fn token_url() -> String {
+    std::env::var("TRUCALENZER_COPILOT_TOKEN_URL").unwrap_or_else(|_| TOKEN_URL.to_string())
+}
+
 fn http_client() -> Result<reqwest::blocking::Client, String> {
     reqwest::blocking::Client::builder()
         .timeout(HTTP_TIMEOUT)
@@ -196,8 +207,9 @@ fn refresh_access_token(session: &mut Session) -> Result<(), String> {
     // `scope()` returns an owned String; bind it so the borrow lives long enough.
     let scope_owned = scope();
     let client_owned = client_id();
+    let token_url_owned = token_url();
     let resp: TokenResponse = client
-        .post(TOKEN_URL)
+        .post(&token_url_owned)
         .form(&[
             ("grant_type", "refresh_token"),
             ("refresh_token", refresh.as_str()),

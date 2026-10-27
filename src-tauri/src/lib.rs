@@ -268,6 +268,72 @@ async fn copilot_sidecar_login_begin() -> Result<Value, String> {
     .map_err(|e| format!("Copilot sidecar worker failed: {e}"))?
 }
 
+/// Stores the MSAL refresh token (and, optionally, the session cookie header)
+/// the user pasted from their signed-in browser, then returns the fresh auth
+/// status. This is the working sign-in path: Microsoft does not expose the
+/// Copilot web API to third-party OAuth clients, so there is no device-code
+/// flow — the browser mints the refresh token and we redeem it via the
+/// standard refresh_token grant. The refresh token never reaches the frontend
+/// again; it is written straight to the per-device session file.
+#[tauri::command]
+async fn copilot_sidecar_login_submit(
+    refresh_token: String,
+    cookies: Option<String>,
+) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let refresh_token = refresh_token.trim().to_string();
+        if refresh_token.is_empty() {
+            return Err("Paste the MSAL refresh token from your signed-in browser first.".to_string());
+        }
+        let exe = std::env::current_exe()
+            .map_err(|e| format!("SIDECAR_MISSING: could not locate app dir: {e}"))?;
+        let dir = exe
+            .parent()
+            .ok_or_else(|| "SIDECAR_MISSING: app exe has no parent dir".to_string())?;
+        let bin_name = if cfg!(windows) {
+            "trucalenzer-copilot.exe"
+        } else {
+            "trucalenzer-copilot"
+        };
+        let bin = dir.join(bin_name);
+        if !bin.exists() {
+            return Err(format!(
+                "SIDECAR_MISSING: {} not found next to the app",
+                bin.display()
+            ));
+        }
+        // Store the refresh token first; it is the credential the chat path
+        // actually needs. Cookies are an optional extra for the conversation
+        // endpoint and are stored in a second invocation when supplied.
+        let seed = |args: &[&str]| -> Result<(), String> {
+            let output = std::process::Command::new(&bin)
+                .args(args)
+                .output()
+                .map_err(|e| format!("Could not run Copilot sidecar: {e}"))?;
+            if output.status.success() {
+                Ok(())
+            } else {
+                Err(format!(
+                    "Copilot sidecar sign-in failed: {}",
+                    String::from_utf8_lossy(&output.stderr).trim()
+                ))
+            }
+        };
+        seed(&["login", "--refresh-token", &refresh_token])?;
+        if let Some(cookie_header) = cookies.as_deref().map(str::trim).filter(|c| !c.is_empty()) {
+            seed(&["login", "--cookies", cookie_header])?;
+        }
+        let output = std::process::Command::new(&bin)
+            .arg("status")
+            .output()
+            .map_err(|e| format!("Could not run Copilot sidecar: {e}"))?;
+        serde_json::from_str::<Value>(&String::from_utf8_lossy(&output.stdout))
+            .map_err(|e| format!("Copilot sidecar status returned bad JSON: {e}"))
+    })
+    .await
+    .map_err(|e| format!("Copilot sidecar worker failed: {e}"))?
+}
+
 #[tauri::command]
 async fn copilot_sidecar_organize(prompt: String) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
@@ -575,6 +641,7 @@ pub fn run() {
             gpt_status,
             copilot_sidecar_status,
             copilot_sidecar_login_begin,
+            copilot_sidecar_login_submit,
             copilot_sidecar_organize,
             sync_identity,
             sync_seal_envelope,

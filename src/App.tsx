@@ -80,15 +80,19 @@ export default function App(){
   const [editingTask,setEditingTask]=useState<{task:Task;occurrenceDay:string|null}|null>(null); const [editingStudent,setEditingStudent]=useState<Student|'new'|null>(null);
   const [pendingMove,setPendingMove]=useState<{id:string;iso:string;occurrenceDay:string;dueDrag?:boolean}|null>(null);
   const [searchOpen,setSearchOpen]=useState(false); const [searchQuery,setSearchQuery]=useState('');
-  const [copilotLogin,setCopilotLogin]=useState<{verification_uri:string;user_code:string;expires_in_seconds:number}|null>(null);
+  const [copilotLogin,setCopilotLogin]=useState<{instructions:string}|null>(null);
   const [copilotLoginDone,setCopilotLoginDone]=useState(false);
   const copilotPrompted=useRef(false);
 
   async function beginCopilotLogin(){
     try{
-      const payload=await invoke<{verification_uri:string;user_code:string;expires_in_seconds:number}>('copilot_sidecar_login_begin');
+      // The sidecar prints a JSON payload describing the sign-in method. There
+      // is no device-code flow (Microsoft does not expose the Copilot web API
+      // to third-party OAuth clients), so we show the paste dialog regardless
+      // of the exact payload and surface any instructions it carries.
+      const payload=await invoke<{method?:string;instructions?:string}>('copilot_sidecar_login_begin').catch(()=>({} as {method?:string;instructions?:string}));
       setCopilotLoginDone(false);
-      setCopilotLogin(payload);
+      setCopilotLogin({instructions:typeof payload.instructions==='string'?payload.instructions:''});
     }catch(e){setNotice(e instanceof Error?e.message:'Could not start Copilot sign-in.')}
   }
 
@@ -494,37 +498,44 @@ function QuickCapture({onAdd}:{onAdd:(title:string)=>void}){
   function submit(){if(!text.trim())return;onAdd(text);setText('');}
   return <div className="quick-capture"><Plus size={16}/><input value={text} onChange={(e)=>setText(e.target.value)} onKeyDown={(e)=>{if(e.key==='Enter')submit();}} placeholder="Add a task… (Enter to add, no date)" aria-label="Add a task quickly"/>{text.trim()&&<button className="secondary compact" onClick={submit}>Add</button>}</div>;
 }
-function CopilotLoginDialog({payload,onDone,onClose}:{payload:{verification_uri:string;user_code:string;expires_in_seconds:number};onDone:()=>void;onClose:()=>void}){
-  const [copied,setCopied]=useState(false);
-  useEffect(()=>{
-    let cancelled=false;
-    const timer=setInterval(async()=>{
-      try{
-        const status=await invoke<{ok:boolean;authed:boolean}>('copilot_sidecar_status');
-        if(!cancelled&&status.authed){clearInterval(timer);onDone();}
-      }catch{/* keep polling */}
-    },5000);
-    return ()=>{cancelled=true;clearInterval(timer)};
-  },[]);
+function CopilotLoginDialog({payload,onDone,onClose}:{payload:{instructions:string};onDone:()=>void;onClose:()=>void}){
+  const [refreshToken,setRefreshToken]=useState('');
+  const [cookies,setCookies]=useState('');
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState('');
   async function openSignIn(){
-    try{await invoke('open_external_url',{url:payload.verification_uri});}
-    catch{/* browser open failed; user can copy the URL manually */}
+    try{await invoke('open_external_url',{url:'https://copilot.microsoft.com/'});}
+    catch{/* browser open failed; user can open the URL manually */}
   }
-  async function copyCode(){
-    try{await navigator.clipboard.writeText(payload.user_code);setCopied(true);setTimeout(()=>setCopied(false),2000);}
-    catch{/* clipboard unavailable */}
+  async function submit(){
+    if(!refreshToken.trim()){setError('Paste the MSAL refresh token from your signed-in browser first.');return;}
+    setBusy(true);setError('');
+    try{
+      const status=await invoke<{ok:boolean;authed:boolean;error?:string}>('copilot_sidecar_login_submit',{refreshToken,cookies:cookies.trim()||null});
+      if(status.authed){onDone();return;}
+      setError(status.error||'The token was stored but Copilot did not accept it. Re-copy the refresh token from the signed-in browser and try again.');
+    }catch(e){setError(e instanceof Error?e.message:'Could not complete Copilot sign-in.');}
+    finally{setBusy(false);}
   }
   return <div className="dialog-backdrop"><section className="dialog" role="dialog" aria-label="Sign in to Microsoft Copilot">
-    <header><div><h2>Sign in to Microsoft Copilot</h2><p className="muted-copy">One-time setup for this device. After this, Info Dump uses Copilot directly.</p></div></header>
+    <header><div><h2>Sign in to Microsoft Copilot</h2><p className="muted-copy">One-time setup for this device. Microsoft does not offer a device-code sign-in for the Copilot web API, so this reuses your browser session.</p></div></header>
     <ol className="muted-copy" style={{margin:'0 0 12px 18px',padding:0}}>
-      <li>Click <strong>Open Microsoft sign-in</strong> below.</li>
-      <li>Enter this code on the Microsoft page:</li>
+      <li>Click <strong>Open Copilot</strong> and sign in in your browser.</li>
+      <li>In DevTools (F12) → Application → Local Storage → copilot.microsoft.com, copy the value of the key containing <code>refreshtoken</code>.</li>
+      <li>Paste it below and click <strong>Finish sign-in</strong>.</li>
     </ol>
-    <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
-      <code style={{fontSize:28,letterSpacing:4,padding:'8px 16px',background:'#f1ebdf',borderRadius:8}}>{payload.user_code}</code>
-      <button className="secondary compact" onClick={copyCode}>{copied?'Copied!':'Copy'}</button>
-    </div>
-    <p className="muted-copy">This page is watching — it will confirm automatically when you finish signing in.</p>
-    <footer><button className="secondary" onClick={onClose}>Later</button><span/><button className="primary" onClick={openSignIn}>Open Microsoft sign-in</button></footer>
+    {payload.instructions?<p className="muted-copy" style={{whiteSpace:'pre-wrap'}}>{payload.instructions}</p>:null}
+    <label>MSAL refresh token
+      <textarea value={refreshToken} onChange={(e)=>setRefreshToken(e.target.value)} rows={3} placeholder="Paste the refresh token value" style={{width:'100%',fontFamily:'monospace'}}/>
+    </label>
+    <label>Cookie header <span className="muted-copy">(optional)</span>
+      <textarea value={cookies} onChange={(e)=>setCookies(e.target.value)} rows={2} placeholder="Optional: full Cookie header for the conversation endpoint" style={{width:'100%',fontFamily:'monospace'}}/>
+    </label>
+    {error?<p className="muted-copy" style={{color:'#b00'}}>{error}</p>:null}
+    <footer>
+      <button className="secondary" onClick={onClose} disabled={busy}>Later</button>
+      <button className="secondary" onClick={openSignIn} disabled={busy}>Open Copilot</button>
+      <button className="primary" onClick={submit} disabled={busy}>{busy?'Signing in…':'Finish sign-in'}</button>
+    </footer>
   </section></div>;
 }
