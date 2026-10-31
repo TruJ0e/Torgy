@@ -65,10 +65,21 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
+      - run: npm install --no-audit --no-fund --legacy-peer-deps
+      - run: npm run build
+      - name: Build Copilot sidecar CLI
+        env:
+          TRUCALENZER_SIDECAR_ONLY: "1"
+        run: cargo build --manifest-path src-tauri/Cargo.toml --release --bin trucalenzer-copilot
+      - name: Stage Copilot sidecar for bundling
+        run: node scripts/stage-copilot-sidecar.mjs
       - run: cargo check --manifest-path src-tauri/Cargo.toml
       - run: cargo test --manifest-path src-tauri/Cargo.toml
