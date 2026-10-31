@@ -185,7 +185,10 @@ pub fn device_code_login(json_output: bool) -> Result<Session, String> {
     println!("     trucalenzer-copilot login --cookies \"<paste header here>\"");
     println!();
     println!("Your tokens are stored on this device only.");
-    Err("Refresh-token login required. Follow the steps above, then re-run with --refresh-token.".to_string())
+    Err(
+        "Refresh-token login required. Follow the steps above, then re-run with --refresh-token."
+            .to_string(),
+    )
 }
 
 fn refresh_access_token(session: &mut Session) -> Result<(), String> {
