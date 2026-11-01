@@ -6,7 +6,6 @@ use chacha20poly1305::{
     aead::{Aead, Payload},
     ChaCha20Poly1305, KeyInit, Nonce,
 };
-use rand::{rngs::OsRng, TryRngCore};
 use serde_json::Value;
 use tauri::{AppHandle, Manager};
 
@@ -130,7 +129,7 @@ fn encrypt_with_key(bytes: &[u8], key: &[u8; 32]) -> Result<Vec<u8>, String> {
     let cipher = ChaCha20Poly1305::new_from_slice(key)
         .map_err(|_| "Could not initialize TruCalenZer local encryption.".to_string())?;
     let mut nonce = [0u8; 12];
-    OsRng.try_fill_bytes(&mut nonce).expect("os rng");
+    getrandom::fill(&mut nonce).expect("os rng");
     let ciphertext = cipher
         .encrypt(
             Nonce::from_slice(&nonce),
@@ -384,7 +383,6 @@ pub mod protect {
 
 #[cfg(target_vendor = "apple")]
 pub mod protect {
-    use rand::{rngs::OsRng, TryRngCore};
     use security_framework::passwords::{get_generic_password, set_generic_password};
 
     use super::{decrypt_with_key, encrypt_with_key};
@@ -400,7 +398,7 @@ pub mod protect {
                 .map_err(|_| "TruCalenZer Keychain master key has the wrong length.".to_string()),
             Err(error) if error.code() == ERR_SEC_ITEM_NOT_FOUND => {
                 let mut key = [0u8; 32];
-                OsRng.try_fill_bytes(&mut key).expect("os rng");
+                getrandom::fill(&mut key).expect("os rng");
                 set_generic_password(SERVICE, ACCOUNT, &key).map_err(|e| {
                     format!("Could not store TruCalenZer master key in Apple Keychain: {e}")
                 })?;
